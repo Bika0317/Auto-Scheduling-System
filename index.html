@@ -733,6 +733,10 @@
       toastGenerated: "自動排班完成",
       monthLabel: (y,m) => `${y} 年 ${m} 月`,
       unknownEmployee: "未知員工",
+      v_dailyHours: (date, sn, h, max) => `${date} 「${sn}」班次時長(${h}小時)超過勞基法每日最多工時(${max}小時)`,
+      v_duplicate: (date, en) => `${date} ${en} 一天被排了多個班別，工時可能超過勞基法每日上限`,
+      v_consecutive: (date, en, max) => `${date} ${en} 連續上班超過勞基法規定的 ${max} 天上限（七休一）`,
+      v_noRest: (date, en) => `${date} ${en} 夜班後未依規則休息`,
       v_weeklyHours: (en, h, max) => `${en} 某週工時 ${h} 小時，超過勞基法每週最多工時 ${max} 小時`,
       v_offDaysLegal: (en, off, min) => `${en} 本月休假天數(${off})低於勞基法最低要求(${min})，違反「一例一休」規定`,
       v_offDaysTarget: (en, off, target) => `${en} 本月休假天數(${off})未達規則設定的月休天數目標(${target})`,
@@ -832,6 +836,10 @@
       toastGenerated: "Auto scheduling complete",
       monthLabel: (y,m) => `${y}-${pad(m)}`,
       unknownEmployee: "Unknown employee",
+      v_dailyHours: (date, sn, h, max) => `${date} "${sn}" duration (${h}h) exceeds the statutory max daily hours (${max}h)`,
+      v_duplicate: (date, en) => `${date} ${en} was assigned multiple shifts in one day, likely exceeding the statutory daily hour limit`,
+      v_consecutive: (date, en, max) => `${date} ${en} exceeded the statutory ${max}-day consecutive work limit ("6 work, 1 rest")`,
+      v_noRest: (date, en) => `${date} ${en} did not get a rest day after a night shift as configured`,
       v_weeklyHours: (en, h, max) => `${en} worked ${h}h in a week, exceeding the statutory max weekly hours (${max}h)`,
       v_offDaysLegal: (en, off, min) => `${en} has only ${off} day(s) off this month, below the statutory minimum (${min}) under the "mandatory + flexible rest day" rule`,
       v_offDaysTarget: (en, off, target) => `${en} has ${off} day(s) off this month, short of the configured target (${target})`,
@@ -1134,11 +1142,13 @@
 
   /* =========================================================
    * 規則檢查
-   * 日曆格子本身已用紅色標示出「不可上班別/不想上班日/夜班資格/同日重複/
-   * 人數不足/連續上班超標/夜班未休息」等問題，所以下方清單不重複列出，
-   * 只專注列出「規則設定」與「員工偏好」相關、日曆看不出來的問題：
-   *   - 紅色：違反勞基法強制規定（每週工時、法定最低休假天數）
-   *   - 黃色：未達規則設定的目標或未滿足員工偏好（合法，但未盡理想）
+   * 日曆格子本身已用紅色標示出「不可上班別/不想上班日/夜班資格/人數不足」
+   * 等單純配對錯誤，這些不重複列出。但若手動調整造成「一天排太多班、
+   * 連續上班超標、單班超時」等實際違反勞基法的情形，仍會列在下方清單：
+   *   - 紅色：違反勞基法強制規定（一天多班、單班超時、連續上班超標、
+   *           每週工時超標、法定最低休假天數）
+   *   - 黃色：未達規則設定的目標、未滿足員工偏好、或夜班後未依規則休息
+   *           （合法，但未盡理想）
    * ========================================================= */
   function computeViolations(){
     const { employees, shifts, rules, schedule } = state;
@@ -1167,6 +1177,7 @@
         }
         if (shiftHours(shift) > rules.maxDailyHours){
           redSlot.add(`${date}_${shiftId}`);
+          listViolations.push({ level: "red", message: t("v_dailyHours", date, shift.name, shiftHours(shift), rules.maxDailyHours) });
           totalCount++;
         }
 
@@ -1186,6 +1197,8 @@
 
       Object.keys(workedShiftsOfEmp).forEach(empId => {
         if (workedShiftsOfEmp[empId].length > 1){
+          const emp = empMap[empId];
+          listViolations.push({ level: "red", message: t("v_duplicate", date, emp ? emp.name : t("unknownEmployee")) });
           totalCount++;
           workedShiftsOfEmp[empId].forEach(shiftId => redChip.add(`${date}_${shiftId}_${empId}`));
         }
@@ -1207,6 +1220,8 @@
         nightWorkers.forEach(empId => {
           Object.keys(nextDaySchedule).forEach(shiftId => {
             if (nextDaySchedule[shiftId].includes(empId)){
+              const emp = empMap[empId];
+              listViolations.push({ level: "yellow", message: t("v_noRest", nextDate, emp ? emp.name : t("unknownEmployee")) });
               redChip.add(`${nextDate}_${shiftId}_${empId}`);
               totalCount++;
             }
@@ -1222,6 +1237,7 @@
         if (works){
           streak++;
           if (streak > rules.maxConsecutiveDays){
+            listViolations.push({ level: "red", message: t("v_consecutive", date, emp.name, rules.maxConsecutiveDays) });
             totalCount++;
             Object.keys(schedule[date]).forEach(shiftId => {
               if (schedule[date][shiftId].includes(emp.id)) redChip.add(`${date}_${shiftId}_${emp.id}`);
