@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自動排班系統</title>
+<style>
+  /* ====== 基礎變數（亮色預設） ====== */
+  :root{
+    --color-primary: #2563eb;
+    --color-primary-dark: #1d4ed8;
+    --color-danger: #dc2626;
+    --color-danger-bg: #fee2e2;
+    --color-success: #16a34a;
+    --color-success-bg: #dcfce7;
+    --color-bg: #f3f4f6;
+    --color-card: #ffffff;
+    --color-border: #e5e7eb;
+    --color-text: #1f2937;
+    --color-text-light: #6b7280;
+    --color-input-bg: #ffffff;
+    --color-cell-bg: #fafafa;
+    --color-slot-bg: #ffffff;
+    --color-chip-bg: #eef2ff;
+    --color-chip-text: #3730a3;
+    --color-hover-bg: #f0f1f3;
+    --color-overlay: rgba(0,0,0,.5);
+    --color-note-bg: #fef9c3;
+    --color-note-text: #854d0e;
+    --color-warning: #b45309;
+    --radius: 8px;
+  }
+  /* ====== 暗色主題變數覆寫 ====== */
+  :root[data-theme="dark"]{
+    --color-primary: #3b82f6;
+    --color-primary-dark: #2563eb;
+    --color-danger: #f87171;
+    --color-danger-bg: rgba(248,113,113,.18);
+    --color-success: #4ade80;
+    --color-success-bg: rgba(74,222,128,.18);
+    --color-bg: #0f172a;
+    --color-card: #1e293b;
+    --color-border: #334155;
+    --color-text: #e5e7eb;
+    --color-text-light: #94a3b8;
+    --color-input-bg: #0f172a;
+    --color-cell-bg: #1e293b;
+    --color-slot-bg: #16213a;
+    --color-chip-bg: #312e81;
+    --color-chip-text: #c7d2fe;
+    --color-hover-bg: #334155;
+    --color-overlay: rgba(0,0,0,.7);
+    --color-note-bg: rgba(250,204,21,.12);
+    --color-note-text: #fde68a;
+    --color-warning: #fbbf24;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: -apple-system, "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    transition: background-color .2s ease, color .2s ease;
+  }
+  h1,h2,h3{ margin: 0 0 8px 0; }
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 14px;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    transition: background .15s;
+  }
+  button:hover{ background: var(--color-hover-bg); }
+  button.primary{ background: var(--color-primary); color:#fff; border-color: var(--color-primary); }
+  button.primary:hover{ background: var(--color-primary-dark); }
+  button.danger{ background: var(--color-card); color: var(--color-danger); border-color: var(--color-danger); }
+  button.danger:hover{ background: var(--color-danger-bg); }
+  input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]{
+    padding:6px 8px;
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    font-size:14px;
+    width:100%;
+    background: var(--color-input-bg);
+    color: var(--color-text);
+  }
+  label{ display:block; margin-bottom:10px; font-size:14px; }
+  label > span{ display:block; margin-bottom:4px; }
+  select{
+    padding:6px 8px;
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    font-size:14px;
+    background: var(--color-input-bg);
+    color: var(--color-text);
+  }
+  .time-select-row{ display:flex; align-items:center; gap:6px; }
+  .time-select-row select{ flex:1; }
+  .time-select-row span{ font-weight:600; color: var(--color-text-light); }
+  .checkbox-row{ display:flex; align-items:center; gap:6px; }
+  .checkbox-row input{ width:auto; }
+  .checkbox-row > span{ margin-bottom:0; }
+  .hidden{ display:none !important; }
+
+  /* ====== 上方功能列 ====== */
+  .toolbar{
+    background: var(--color-card);
+    border-bottom: 1px solid var(--color-border);
+    padding: 12px 16px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    position: sticky;
+    top:0;
+    z-index: 50;
+  }
+  .toolbar h1{ font-size:18px; white-space:nowrap; }
+  .toolbar-buttons{ display:flex; flex-wrap:wrap; gap:8px; }
+  .toolbar-divider{ width:1px; background: var(--color-border); margin:0 4px; align-self:stretch; }
+
+  .first-time-note{
+    background: var(--color-note-bg);
+    color: var(--color-note-text);
+    font-size:13px;
+    padding:8px 16px;
+    text-align:center;
+  }
+
+  /* ====== 主版面：左右兩欄 ====== */
+  .app-container{
+    display:grid;
+    grid-template-columns: 380px 1fr;
+    gap:16px;
+    padding:16px;
+    align-items:start;
+  }
+  @media (max-width: 900px){
+    .app-container{ grid-template-columns: 1fr; }
+  }
+  .left-panel, .right-panel{ display:flex; flex-direction:column; gap:16px; }
+  .panel-block{
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding:14px;
+  }
+
+  /* ====== 員工 / 班別卡片清單 ====== */
+  .item-list{ display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto; }
+  .empty-hint{ color: var(--color-text-light); font-size:13px; }
+  .item-card{
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    padding:8px 10px;
+    font-size:13px;
+  }
+  .item-card-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .item-card-body div{ color: var(--color-text-light); margin-bottom:2px; }
+  .item-card-actions{ display:flex; gap:6px; margin-top:6px; }
+  .item-card-actions button{ padding:4px 10px; font-size:12px; }
+  .badge{ font-size:11px; padding:2px 6px; border-radius:10px; }
+  .badge-yes{ background: var(--color-success-bg); color: var(--color-success); }
+  .badge-no{ background: var(--color-hover-bg); color: var(--color-text-light); }
+  .color-dot{
+    display:inline-block; width:10px; height:10px; border-radius:50%;
+    margin-right:6px; vertical-align:middle; flex-shrink:0;
+  }
+
+  /* ====== 規則設定表單 ====== */
+  .rules-form label{ font-weight:500; }
+  .legal-hint{
+    display:block; font-weight:400; font-size:11px; color: var(--color-text-light);
+    margin:-4px 0 8px 0;
+  }
+  .legal-disclaimer{
+    font-size:11px; color: var(--color-text-light); margin:0 0 10px 0; line-height:1.5;
+  }
+  .sub-label{ font-size:12px; font-weight:600; color: var(--color-text-light); margin-top:4px; margin-bottom:4px; }
+  .preference-overview{ display:flex; flex-direction:column; gap:4px; max-height:160px; overflow-y:auto; }
+  .preference-row{
+    display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+    font-size:12px; background: var(--color-hover-bg); border-radius:6px; padding:4px 8px;
+  }
+  .preference-row strong{ flex-shrink:0; }
+  .preference-row span{ color: var(--color-text-light); text-align:right; }
+
+  /* ====== 月曆 ====== */
+  .calendar-scroll{ overflow-x:auto; }
+  .calendar-weekdays, .calendar-grid{
+    display:grid;
+    grid-template-columns: repeat(7, minmax(170px, 1fr));
+    gap:6px;
+  }
+  .calendar-weekdays div{
+    text-align:center;
+    font-weight:600;
+    color: var(--color-text-light);
+    font-size:13px;
+    padding:4px 0;
+  }
+  .calendar-cell{
+    position:relative;
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    min-height:180px;
+    padding:6px;
+    padding-bottom:28px;
+    background: var(--color-cell-bg);
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .calendar-cell.empty{ background:transparent; border:none; }
+  .cell-date{ font-weight:600; font-size:13px; }
+  .cell-zoom-btn{
+    position:absolute; bottom:4px; right:4px;
+    width:22px; height:22px; padding:0; line-height:1;
+    font-size:14px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .cell-shifts{ display:flex; flex-direction:column; gap:6px; }
+  .shift-slot{
+    background: var(--color-slot-bg);
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    padding:4px 6px;
+  }
+  .shift-slot.night-slot{ border-left:3px solid #4338ca; }
+  .shift-slot.slot-violation{ border-color: var(--color-danger); background: var(--color-danger-bg); }
+  .slot-header{ font-size:12px; font-weight:600; display:flex; justify-content:space-between; }
+  .slot-count{ color: var(--color-text-light); font-weight:400; }
+  .slot-violation .slot-count{ color: var(--color-danger); font-weight:700; }
+  .slot-chips{ display:flex; flex-wrap:wrap; gap:4px; margin:4px 0; }
+  .chip{
+    background: var(--color-chip-bg);
+    color: var(--color-chip-text);
+    border-radius:10px;
+    padding:1px 6px;
+    font-size:11px;
+    display:flex;
+    align-items:center;
+    gap:3px;
+  }
+  .chip.chip-violation{ background: var(--color-danger-bg); color: var(--color-danger); font-weight:700; }
+  .chip-remove{
+    border:none; background:transparent; color:inherit; cursor:pointer;
+    padding:0; font-size:12px; line-height:1; font-weight:700;
+  }
+  .add-select{
+    width:100%; font-size:11px; padding:2px; border-radius:4px;
+    border:1px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text);
+  }
+
+  /* ====== 規則符合狀態 ====== */
+  .status-ok{ background: var(--color-success-bg); color: var(--color-success); padding:8px; border-radius:6px; font-weight:600; }
+  .status-bad{ background: var(--color-danger-bg); color: var(--color-danger); padding:8px; border-radius:6px; font-weight:600; }
+  .violation-list{ max-height:220px; overflow-y:auto; margin:10px 0 0; padding-left:18px; font-size:13px; }
+  .violation-list li{ margin-bottom:4px; }
+  .violation-list li.violation-red{ color: var(--color-danger); font-weight:600; }
+  .violation-list li.violation-yellow{ color: var(--color-warning); font-weight:600; }
+
+  /* ====== Modal ====== */
+  .modal-overlay{
+    position:fixed; inset:0; background: var(--color-overlay);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100; padding:16px;
+  }
+  .modal{
+    background: var(--color-card); color: var(--color-text); border-radius:10px; padding:20px;
+    width:100%; max-width:480px; max-height:90vh; overflow-y:auto;
+  }
+  fieldset{ border:1px solid var(--color-border); border-radius:6px; margin-bottom:12px; }
+  legend{ font-size:13px; color: var(--color-text-light); padding:0 4px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+  .date-add-row{ display:flex; gap:6px; margin-bottom:8px; }
+  .date-add-row input{ flex:1; }
+  .tag-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tag{
+    background: var(--color-hover-bg); border-radius:10px; padding:2px 8px; font-size:12px;
+    display:flex; align-items:center; gap:4px;
+  }
+  .tag button{ border:none; background:transparent; padding:0; font-weight:700; cursor:pointer; color: var(--color-text); }
+  .checkbox-grid{ display:flex; flex-wrap:wrap; gap:8px; padding:8px; }
+  .checkbox-grid label{ margin:0; display:flex; align-items:center; gap:4px; width:auto; font-weight:400; }
+  .checkbox-grid input{ width:auto; }
+
+  /* ====== 放大檢視 Modal ====== */
+  .zoom-modal{ max-width:560px; }
+  .zoom-slider-row{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:13px; }
+  .zoom-slider-row input[type="range"]{ flex:1; width:auto; }
+  .zoom-percent{ min-width:42px; text-align:right; color: var(--color-text-light); }
+  .zoom-viewport{
+    overflow:auto; max-height:50vh;
+    border:1px solid var(--color-border); border-radius:6px;
+    padding:10px; background: var(--color-cell-bg);
+  }
+  .zoom-content{ transform-origin: top left; width:260px; }
+  .zoom-content .cell-shifts{ display:flex; flex-direction:column; gap:8px; }
+
+  /* ====== Toast ====== */
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:#1f2937; color:#fff; padding:10px 18px; border-radius:6px;
+    font-size:14px; z-index:200;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 上方功能列 -->
+  <header class="toolbar">
+    <h1 id="appTitle">自動排班系統</h1>
+    <div class="toolbar-buttons">
+      <button id="btnAddEmployee">+ 新增員工</button>
+      <button id="btnAddShift">+ 新增班別</button>
+      <button id="btnGenerate" class="primary">⟳ 自動排班</button>
+      <button id="btnSave">儲存</button>
+      <button id="btnExport">↑ 匯出 JSON</button>
+      <button id="btnImport">↓ 匯入 JSON</button>
+      <input type="file" id="fileImport" accept="application/json" hidden>
+      <button id="btnClear" class="danger">✕ 清除資料</button>
+      <span class="toolbar-divider"></span>
+      <button id="btnTheme">☾ 深色</button>
+      <button id="btnLang">EN</button>
+    </div>
+  </header>
+
+  <div id="firstTimeNote" class="first-time-note"></div>
+
+  <main class="app-container">
+    <!-- 左側設定區 -->
+    <section class="left-panel">
+
+      <div class="panel-block">
+        <h2 id="lblSectionEmployees">員工管理</h2>
+        <div id="employeeList" class="item-list"></div>
+      </div>
+
+      <div class="panel-block">
+        <h2 id="lblSectionShifts">班別管理</h2>
+        <div id="shiftList" class="item-list"></div>
+      </div>
+
+      <div class="panel-block">
+        <h2 id="lblSectionRules">規則設定</h2>
+        <p id="legalDisclaimer" class="legal-disclaimer"></p>
+        <form id="rulesForm" class="rules-form" onsubmit="return false;">
+          <label><span id="lblRuleMonth">排班月份</span>
+            <input type="month" id="ruleMonth">
+          </label>
+          <label><span id="lblRuleMonthlyOffDays">每位員工月休天數</span>
+            <input type="number" id="ruleMonthlyOffDays" min="0">
+          </label>
+          <span id="legalHintMonthlyOff" class="legal-hint"></span>
+          <label><span id="lblRuleMaxConsecutiveDays">最大連續上班天數</span>
+            <input type="number" id="ruleMaxConsecutiveDays" min="1" max="6">
+          </label>
+          <span id="legalHintMaxConsecutive" class="legal-hint"></span>
+          <label class="checkbox-row">
+            <input type="checkbox" id="ruleRestAfterNight"><span id="lblRuleRestAfterNight">夜班後必須休息一天</span>
+          </label>
+          <label><span id="lblRuleMaxDailyHours">每日最多工時 (小時)</span>
+            <input type="number" id="ruleMaxDailyHours" min="1" max="12" step="0.5">
+          </label>
+          <span id="legalHintMaxDaily" class="legal-hint"></span>
+          <label><span id="lblRuleMaxWeeklyHours">每週最多工時 (小時)</span>
+            <input type="number" id="ruleMaxWeeklyHours" min="1" max="48" step="0.5">
+          </label>
+          <span id="legalHintMaxWeekly" class="legal-hint"></span>
+          <label class="checkbox-row">
+            <input type="checkbox" id="ruleFairness"><span id="lblRuleFairness">盡量公平分配班次</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="rulePreference"><span id="lblRulePreference">盡量滿足員工偏好</span>
+          </label>
+          <div id="lblPreferenceOverview" class="sub-label">員工偏好班別總覽</div>
+          <div id="preferenceOverview" class="preference-overview"></div>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- 右側班表預覽區 -->
+    <section class="right-panel">
+
+      <div class="panel-block">
+        <h2><span id="lblSectionCalendar">班表預覽</span> - <span id="calendarMonthLabel"></span></h2>
+        <div class="calendar-scroll">
+          <div id="calendarWeekdays" class="calendar-weekdays"></div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2 id="lblSectionRuleStatus">規則符合狀態</h2>
+        <div id="statusSummary"></div>
+        <ul id="violationList" class="violation-list"></ul>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- 新增 / 編輯員工 Modal -->
+  <div id="employeeModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="employeeModalTitle">新增員工</h3>
+      <input type="hidden" id="employeeId">
+      <label><span id="lblEmployeeName">員工名稱</span>
+        <input type="text" id="employeeName">
+      </label>
+
+      <fieldset>
+        <legend id="legendAllowedShifts">可上班班別</legend>
+        <div id="employeeAllowedShifts" class="checkbox-grid"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend id="legendPreferredShifts">偏好班別</legend>
+        <div id="employeePreferredShifts" class="checkbox-grid"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend id="legendUnavailableDates">不想上班日期</legend>
+        <div class="date-add-row">
+          <input type="date" id="employeeUnavailableInput">
+          <button type="button" id="btnAddUnavailableDate">新增</button>
+        </div>
+        <div id="employeeUnavailableList" class="tag-list"></div>
+      </fieldset>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="employeeCanNight"><span id="lblEmployeeCanNight">可上夜班</span>
+      </label>
+
+      <div class="modal-actions">
+        <button id="btnCancelEmployee">取消</button>
+        <button id="btnSaveEmployee" class="primary">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增 / 編輯班別 Modal -->
+  <div id="shiftModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="shiftModalTitle">新增班別</h3>
+      <input type="hidden" id="shiftId">
+      <label><span id="lblShiftName">班別名稱</span>
+        <input type="text" id="shiftName">
+      </label>
+      <label><span id="lblShiftStart">開始時間</span>
+        <div class="time-select-row">
+          <select id="shiftStartHour"></select>
+          <span>:</span>
+          <select id="shiftStartMinute"></select>
+        </div>
+      </label>
+      <label><span id="lblShiftEnd">結束時間</span>
+        <div class="time-select-row">
+          <select id="shiftEndHour"></select>
+          <span>:</span>
+          <select id="shiftEndMinute"></select>
+        </div>
+      </label>
+      <label><span id="lblShiftRequired">每班需要人數</span>
+        <input type="number" id="shiftRequired" min="1" value="1">
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="shiftIsNight"><span id="lblShiftIsNight">是否為夜班</span>
+      </label>
+
+      <div class="modal-actions">
+        <button id="btnCancelShift">取消</button>
+        <button id="btnSaveShift" class="primary">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 放大檢視單日班表 Modal -->
+  <div id="zoomModal" class="modal-overlay hidden">
+    <div class="modal zoom-modal">
+      <h3 id="zoomModalTitle"></h3>
+      <div class="zoom-slider-row">
+        <span id="lblZoomLevel">縮放</span>
+        <input type="range" id="zoomSlider" min="100" max="300" step="10" value="150">
+        <span id="zoomPercentLabel" class="zoom-percent">150%</span>
+      </div>
+      <div class="zoom-viewport">
+        <div id="zoomContent" class="zoom-content"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btnCloseZoom">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+   * 共用小工具
+   * ========================================================= */
+  const $ = id => document.getElementById(id);
+  const STORAGE_KEY = "autoshift_data_v1";
+  const UI_PREFS_KEY = "autoshift_ui_prefs_v1";
+
+  function uid(prefix){
+    return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function pad(n){ return String(n).padStart(2, "0"); }
+
+  function formatDate(y, m, day){
+    return `${y}-${pad(m)}-${pad(day)}`;
+  }
+
+  // 用「年/月/日」建構 Date，避免字串轉 Date 受時區影響造成日期跑掉
+  function parseDateStr(dateStr){
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function shiftHours(shift){
+    const [sh, sm] = shift.start.split(":").map(Number);
+    const [eh, em] = shift.end.split(":").map(Number);
+    let startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    if (endMin <= startMin) endMin += 24 * 60; // 跨夜
+    return (endMin - startMin) / 60;
+  }
+
+  function isNextDay(dateA, dateB){
+    const a = parseDateStr(dateA);
+    const b = parseDateStr(dateB);
+    const diffDays = Math.round((b - a) / (1000 * 60 * 60 * 24));
+    return diffDays === 1;
+  }
+
+  function getWeekKey(dateStr){
+    const d = parseDateStr(dateStr);
+    const day = d.getDate();
+    const firstWeekday = (new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7;
+    const weekIdx = Math.floor((day - 1 + firstWeekday) / 7);
+    return `${d.getFullYear()}-${d.getMonth()}-${weekIdx}`;
+  }
+
+  /* =========================================================
+   * 勞動基準法強制規定（不可被使用者調整超過的法定上限/下限）
+   * - 第32條：正常工時+延長工時，一日不得超過12小時
+   * - 第36條：「七休一」，勞工每七日中應有2日休息，不得連續工作超過6天
+   * - 每週最多工時為依正常工時上限換算之保守建議值（實際加班總量仍以月計算為準）
+   * ========================================================= */
+  const LABOR_LAW = {
+    MAX_DAILY_HOURS: 12,
+    MAX_CONSECUTIVE_DAYS: 6,
+    MAX_WEEKLY_HOURS: 48,
+    OFF_DAYS_PER_WEEK_CYCLE: 2
+  };
+
+  // 依該月天數換算「一例一休」要求的最低休假天數（每滿7天至少2天休假）
+  function getLegalMinOffDays(numDays){
+    return Math.floor(numDays / 7) * LABOR_LAW.OFF_DAYS_PER_WEEK_CYCLE;
+  }
+
+  // 確保目前規則設定沒有超過/低於勞基法強制規定的範圍，若有則自動修正
+  function enforceLegalLimits(){
+    const r = state.rules;
+    let touched = false;
+    if (r.maxDailyHours > LABOR_LAW.MAX_DAILY_HOURS){ r.maxDailyHours = LABOR_LAW.MAX_DAILY_HOURS; touched = true; }
+    if (r.maxConsecutiveDays > LABOR_LAW.MAX_CONSECUTIVE_DAYS){ r.maxConsecutiveDays = LABOR_LAW.MAX_CONSECUTIVE_DAYS; touched = true; }
+    if (r.maxWeeklyHours > LABOR_LAW.MAX_WEEKLY_HOURS){ r.maxWeeklyHours = LABOR_LAW.MAX_WEEKLY_HOURS; touched = true; }
+    const [y, m] = r.month.split("-").map(Number);
+    const numDays = new Date(y, m, 0).getDate();
+    const minOff = getLegalMinOffDays(numDays);
+    if (r.monthlyOffDays < minOff){ r.monthlyOffDays = minOff; touched = true; }
+    return touched;
+  }
+
+  // 依員工 ID 算出一個穩定的專屬顏色，方便在日曆上快速辨識不同員工
+  function colorForEmployee(empId){
+    let hash = 0;
+    for (let i = 0; i < empId.length; i++){
+      hash = (hash * 31 + empId.charCodeAt(i)) >>> 0;
+    }
+    const hue = hash % 360;
+    return { bg: `hsl(${hue}, 70%, 88%)`, text: `hsl(${hue}, 70%, 26%)` };
+  }
+
+  let toastTimer = null;
+  function showToast(msg){
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.add("hidden"), 2200);
+  }
+
+  /* =========================================================
+   * 多國語言字典
+   * ========================================================= */
+  const I18N = {
+    zh: {
+      appTitle: "自動排班系統",
+      btnAddEmployee: "+ 新增員工",
+      btnAddShift: "+ 新增班別",
+      btnGenerate: "⟳ 自動排班",
+      btnSave: "儲存",
+      btnExport: "↑ 匯出 JSON",
+      btnImport: "↓ 匯入 JSON",
+      btnClear: "✕ 清除資料",
+      btnThemeToLight: "☼ 淺色",
+      btnThemeToDark: "☾ 深色",
+      btnLang: "EN",
+      lblSectionEmployees: "員工管理",
+      lblSectionShifts: "班別管理",
+      lblSectionRules: "規則設定",
+      emptyEmployees: "尚無員工，請點擊上方「+ 新增員工」",
+      emptyShifts: "尚無班別，請點擊上方「+ 新增班別」",
+      lblRuleMonth: "排班月份",
+      lblRuleMonthlyOffDays: "每位員工月休天數",
+      lblRuleMaxConsecutiveDays: "最大連續上班天數",
+      lblRuleRestAfterNight: "夜班後必須休息一天",
+      lblRuleMaxDailyHours: "每日最多工時 (小時)",
+      lblRuleMaxWeeklyHours: "每週最多工時 (小時)",
+      lblRuleFairness: "盡量公平分配班次",
+      lblRulePreference: "盡量滿足員工偏好",
+      lblSectionCalendar: "班表預覽",
+      lblSectionRuleStatus: "規則符合狀態",
+      weekdays: ["一","二","三","四","五","六","日"],
+      addEmployeeOption: "+ 新增員工",
+      statusOk: "✓ 目前排班符合所有規則",
+      statusBad: n => `⚠ 發現 ${n} 項規則問題，詳見下方清單`,
+      canNightYes: "可夜班",
+      canNightNo: "不可夜班",
+      labelAllowed: "可上班別",
+      labelPreferred: "偏好班別",
+      labelUnavailableCount: n => `不想上班日：${n} 天`,
+      editBtn: "編輯",
+      deleteBtn: "刪除",
+      noneText: "無",
+      listSep: "、",
+      isNightYes: "夜班",
+      isNightNo: "日間班",
+      labelTime: (s,e,h) => `時間：${s} ~ ${e}（${h} 小時）`,
+      labelRequired: n => `每班需要人數：${n}`,
+      titleAddEmployee: "新增員工",
+      titleEditEmployee: "編輯員工",
+      lblEmployeeName: "員工名稱",
+      legendAllowedShifts: "可上班班別",
+      legendPreferredShifts: "偏好班別",
+      legendUnavailableDates: "不想上班日期",
+      btnAddDate: "新增",
+      lblEmployeeCanNight: "可上夜班",
+      btnCancel: "取消",
+      btnSaveModal: "儲存",
+      alertNeedName: "請輸入員工名稱",
+      emptyNeedShiftsFirst: "請先新增班別",
+      titleAddShift: "新增班別",
+      titleEditShift: "編輯班別",
+      lblShiftName: "班別名稱",
+      lblShiftStart: "開始時間",
+      lblShiftEnd: "結束時間",
+      lblShiftRequired: "每班需要人數",
+      lblShiftIsNight: "是否為夜班",
+      alertShiftIncomplete: "請完整填寫班別名稱、開始/結束時間，並確保需要人數至少為 1",
+      confirmGenerateOverwrite: "自動排班將覆蓋目前月份的班表，確定要繼續嗎？",
+      alertNeedEmployeesShifts: "請先新增至少一位員工與一個班別，才能自動排班。",
+      confirmDeleteEmployee: name => `確定要刪除員工「${name}」嗎？`,
+      confirmDeleteShift: name => `確定要刪除班別「${name}」嗎？相關員工設定與排班紀錄也會一併移除。`,
+      confirmClearAll: "確定要清除所有資料嗎？此動作無法復原！",
+      toastEmployeeSaved: "員工資料已儲存",
+      toastEmployeeDeleted: "員工已刪除",
+      toastShiftSaved: "班別資料已儲存",
+      toastShiftDeleted: "班別已刪除",
+      toastSaved: "已儲存到本機",
+      toastImportSuccess: "匯入成功",
+      alertImportFail: "匯入失敗，檔案格式不正確",
+      toastCleared: "資料已清除",
+      toastGenerated: "自動排班完成",
+      monthLabel: (y,m) => `${y} 年 ${m} 月`,
+      unknownEmployee: "未知員工",
+      v_weeklyHours: (en, h, max) => `${en} 某週工時 ${h} 小時，超過勞基法每週最多工時 ${max} 小時`,
+      v_offDaysLegal: (en, off, min) => `${en} 本月休假天數(${off})低於勞基法最低要求(${min})，違反「一例一休」規定`,
+      v_offDaysTarget: (en, off, target) => `${en} 本月休假天數(${off})未達規則設定的月休天數目標(${target})`,
+      v_preferenceNotMet: en => `${en} 本月排班完全未安排到偏好班別`,
+      legalDisclaimer: "標有 ⚖ 的欄位已依勞動基準法強制規定限制可調整範圍，無法設定為違法數值。",
+      legalHintMaxDaily: "⚖ 依勞基法第32條，每日工時（含加班）上限為 12 小時",
+      legalHintMaxConsecutive: "⚖ 依勞基法第36條「七休一」，最多連續上班 6 天",
+      legalHintMaxWeekly: "⚖ 依勞基法工時上限換算之建議值，上限 48 小時（加班總量仍以月計算為準）",
+      legalHintMonthlyOff: min => `⚖ 依勞基法第36條「一例一休」，本月至少需有 ${min} 天休假`,
+      toastDailyHoursCapped: cap => `已自動調整為勞基法上限 ${cap} 小時`,
+      toastConsecutiveCapped: cap => `已自動調整為勞基法上限 ${cap} 天（七休一）`,
+      toastWeeklyHoursCapped: cap => `已自動調整為建議上限 ${cap} 小時`,
+      toastOffDaysFloored: min => `已自動調整為勞基法最低要求 ${min} 天（一例一休）`,
+      lblPreferenceOverview: "員工偏好班別總覽",
+      noPreferenceSet: "尚無員工設定偏好班別",
+      firstTimeNote: "※ 若是初次排班，請先「新增班別」，再「新增員工」設定該員工的可上班別與偏好班別。",
+      lblZoomLevel: "縮放",
+      zoomTooltip: "放大檢視這一天"
+    },
+    en: {
+      appTitle: "Auto Scheduling System",
+      btnAddEmployee: "+ Add Employee",
+      btnAddShift: "+ Add Shift",
+      btnGenerate: "⟳ Auto Schedule",
+      btnSave: "Save",
+      btnExport: "↑ Export JSON",
+      btnImport: "↓ Import JSON",
+      btnClear: "✕ Clear Data",
+      btnThemeToLight: "☼ Light",
+      btnThemeToDark: "☾ Dark",
+      btnLang: "中",
+      lblSectionEmployees: "Employees",
+      lblSectionShifts: "Shifts",
+      lblSectionRules: "Rules",
+      emptyEmployees: 'No employees yet. Click "+ Add Employee" above.',
+      emptyShifts: 'No shifts yet. Click "+ Add Shift" above.',
+      lblRuleMonth: "Schedule Month",
+      lblRuleMonthlyOffDays: "Monthly Days Off / Employee",
+      lblRuleMaxConsecutiveDays: "Max Consecutive Work Days",
+      lblRuleRestAfterNight: "Require rest day after night shift",
+      lblRuleMaxDailyHours: "Max Daily Hours",
+      lblRuleMaxWeeklyHours: "Max Weekly Hours",
+      lblRuleFairness: "Prioritize fair shift distribution",
+      lblRulePreference: "Prioritize employee preferences",
+      lblSectionCalendar: "Schedule Preview",
+      lblSectionRuleStatus: "Rule Compliance Status",
+      weekdays: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+      addEmployeeOption: "+ Add employee",
+      statusOk: "✓ Current schedule complies with all rules",
+      statusBad: n => `⚠ Found ${n} rule issue(s), see list below`,
+      canNightYes: "Night OK",
+      canNightNo: "No Night",
+      labelAllowed: "Allowed Shifts",
+      labelPreferred: "Preferred Shifts",
+      labelUnavailableCount: n => `Unavailable days: ${n}`,
+      editBtn: "Edit",
+      deleteBtn: "Delete",
+      noneText: "None",
+      listSep: ", ",
+      isNightYes: "Night",
+      isNightNo: "Day",
+      labelTime: (s,e,h) => `Time: ${s} ~ ${e} (${h}h)`,
+      labelRequired: n => `Required headcount: ${n}`,
+      titleAddEmployee: "Add Employee",
+      titleEditEmployee: "Edit Employee",
+      lblEmployeeName: "Name",
+      legendAllowedShifts: "Allowed Shifts",
+      legendPreferredShifts: "Preferred Shifts",
+      legendUnavailableDates: "Unavailable Dates",
+      btnAddDate: "Add",
+      lblEmployeeCanNight: "Can work night shift",
+      btnCancel: "Cancel",
+      btnSaveModal: "Save",
+      alertNeedName: "Please enter employee name",
+      emptyNeedShiftsFirst: "Please add a shift first",
+      titleAddShift: "Add Shift",
+      titleEditShift: "Edit Shift",
+      lblShiftName: "Shift Name",
+      lblShiftStart: "Start Time",
+      lblShiftEnd: "End Time",
+      lblShiftRequired: "Required Headcount",
+      lblShiftIsNight: "Is Night Shift",
+      alertShiftIncomplete: "Please fill in shift name, start/end time, and required headcount (>= 1)",
+      confirmGenerateOverwrite: "Auto scheduling will overwrite this month's schedule. Continue?",
+      alertNeedEmployeesShifts: "Please add at least one employee and one shift before auto scheduling.",
+      confirmDeleteEmployee: name => `Delete employee "${name}"?`,
+      confirmDeleteShift: name => `Delete shift "${name}"? Related employee settings and schedule entries will also be removed.`,
+      confirmClearAll: "Clear all data? This cannot be undone!",
+      toastEmployeeSaved: "Employee saved",
+      toastEmployeeDeleted: "Employee deleted",
+      toastShiftSaved: "Shift saved",
+      toastShiftDeleted: "Shift deleted",
+      toastSaved: "Saved locally",
+      toastImportSuccess: "Import successful",
+      alertImportFail: "Import failed, invalid file format",
+      toastCleared: "Data cleared",
+      toastGenerated: "Auto scheduling complete",
+      monthLabel: (y,m) => `${y}-${pad(m)}`,
+      unknownEmployee: "Unknown employee",
+      v_weeklyHours: (en, h, max) => `${en} worked ${h}h in a week, exceeding the statutory max weekly hours (${max}h)`,
+      v_offDaysLegal: (en, off, min) => `${en} has only ${off} day(s) off this month, below the statutory minimum (${min}) under the "mandatory + flexible rest day" rule`,
+      v_offDaysTarget: (en, off, target) => `${en} has ${off} day(s) off this month, short of the configured target (${target})`,
+      v_preferenceNotMet: en => `${en} was never scheduled on a preferred shift this month`,
+      legalDisclaimer: "Fields marked ⚖ are constrained by Taiwan's Labor Standards Act and cannot be set to illegal values.",
+      legalHintMaxDaily: "⚖ Per Article 32: max 12 hours/day (incl. overtime)",
+      legalHintMaxConsecutive: "⚖ Per Article 36 (\"6-work-1-rest\"): max 6 consecutive work days",
+      legalHintMaxWeekly: "⚖ Reference cap derived from statutory hour limits: 48 hours (actual overtime cap is monthly)",
+      legalHintMonthlyOff: min => `⚖ Per Article 36 (mandatory + flexible rest day every 7 days): at least ${min} day(s) off this month`,
+      toastDailyHoursCapped: cap => `Auto-adjusted to the statutory cap of ${cap} hours`,
+      toastConsecutiveCapped: cap => `Auto-adjusted to the statutory cap of ${cap} days (mandatory rest every 7 days)`,
+      toastWeeklyHoursCapped: cap => `Auto-adjusted to the recommended cap of ${cap} hours`,
+      toastOffDaysFloored: min => `Auto-adjusted to the statutory minimum of ${min} day(s)`,
+      lblPreferenceOverview: "Employee Shift Preference Overview",
+      noPreferenceSet: "No employees have set shift preferences yet",
+      firstTimeNote: "※ First time scheduling? Please \"Add Shift\" first, then \"Add Employee\" to set that employee's allowed/preferred shifts.",
+      lblZoomLevel: "Zoom",
+      zoomTooltip: "Enlarge this day"
+    }
+  };
+
+  function t(key, ...args){
+    const entry = I18N[uiPrefs.lang][key];
+    return typeof entry === "function" ? entry(...args) : entry;
+  }
+
+  /* =========================================================
+   * UI 偏好設定（語言 / 主題），與排班資料分開儲存
+   * ========================================================= */
+  function defaultUiPrefs(){ return { lang: "zh", theme: "light" }; }
+
+  function loadUiPrefs(){
+    try{
+      const raw = localStorage.getItem(UI_PREFS_KEY);
+      if (raw) return Object.assign(defaultUiPrefs(), JSON.parse(raw));
+    }catch(e){ console.error("讀取介面偏好失敗", e); }
+    return defaultUiPrefs();
+  }
+
+  function saveUiPrefs(){ localStorage.setItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
+
+  let uiPrefs = loadUiPrefs();
+
+  function applyTheme(){
+    document.documentElement.setAttribute("data-theme", uiPrefs.theme);
+    $("btnTheme").textContent = uiPrefs.theme === "dark" ? t("btnThemeToLight") : t("btnThemeToDark");
+  }
+
+  function toggleTheme(){
+    uiPrefs.theme = uiPrefs.theme === "dark" ? "light" : "dark";
+    saveUiPrefs();
+    applyTheme();
+  }
+
+  // 套用所有靜態文字（按鈕、標題、表單標籤等），並重新渲染動態內容
+  function applyLanguage(){
+    $("appTitle").textContent = t("appTitle");
+    $("firstTimeNote").textContent = t("firstTimeNote");
+    $("btnAddEmployee").textContent = t("btnAddEmployee");
+    $("btnAddShift").textContent = t("btnAddShift");
+    $("btnGenerate").textContent = t("btnGenerate");
+    $("btnSave").textContent = t("btnSave");
+    $("btnExport").textContent = t("btnExport");
+    $("btnImport").textContent = t("btnImport");
+    $("btnClear").textContent = t("btnClear");
+    $("btnLang").textContent = t("btnLang");
+
+    $("lblSectionEmployees").textContent = t("lblSectionEmployees");
+    $("lblSectionShifts").textContent = t("lblSectionShifts");
+    $("lblSectionRules").textContent = t("lblSectionRules");
+
+    $("lblRuleMonth").textContent = t("lblRuleMonth");
+    $("lblRuleMonthlyOffDays").textContent = t("lblRuleMonthlyOffDays");
+    $("lblRuleMaxConsecutiveDays").textContent = t("lblRuleMaxConsecutiveDays");
+    $("lblRuleRestAfterNight").textContent = t("lblRuleRestAfterNight");
+    $("lblRuleMaxDailyHours").textContent = t("lblRuleMaxDailyHours");
+    $("lblRuleMaxWeeklyHours").textContent = t("lblRuleMaxWeeklyHours");
+    $("lblRuleFairness").textContent = t("lblRuleFairness");
+    $("lblRulePreference").textContent = t("lblRulePreference");
+
+    $("lblSectionCalendar").textContent = t("lblSectionCalendar");
+    $("lblSectionRuleStatus").textContent = t("lblSectionRuleStatus");
+
+    $("lblEmployeeName").textContent = t("lblEmployeeName");
+    $("legendAllowedShifts").textContent = t("legendAllowedShifts");
+    $("legendPreferredShifts").textContent = t("legendPreferredShifts");
+    $("legendUnavailableDates").textContent = t("legendUnavailableDates");
+    $("btnAddUnavailableDate").textContent = t("btnAddDate");
+    $("lblEmployeeCanNight").textContent = t("lblEmployeeCanNight");
+    $("btnCancelEmployee").textContent = t("btnCancel");
+    $("btnSaveEmployee").textContent = t("btnSaveModal");
+
+    $("lblShiftName").textContent = t("lblShiftName");
+    $("lblShiftStart").textContent = t("lblShiftStart");
+    $("lblShiftEnd").textContent = t("lblShiftEnd");
+    $("lblShiftRequired").textContent = t("lblShiftRequired");
+    $("lblShiftIsNight").textContent = t("lblShiftIsNight");
+    $("btnCancelShift").textContent = t("btnCancel");
+    $("btnSaveShift").textContent = t("btnSaveModal");
+
+    $("lblZoomLevel").textContent = t("lblZoomLevel");
+    $("btnCloseZoom").textContent = t("btnCancel");
+
+    applyTheme(); // 主題按鈕文字也需要跟著語言更新
+    renderAll();
+  }
+
+  function toggleLanguage(){
+    uiPrefs.lang = uiPrefs.lang === "zh" ? "en" : "zh";
+    saveUiPrefs();
+    applyLanguage();
+  }
+
+  /* =========================================================
+   * 資料模型 / 預設值
+   * ========================================================= */
+  function defaultState(){
+    const now = new Date();
+    const month = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+    return {
+      employees: [],
+      shifts: [],
+      rules: {
+        month: month,
+        monthlyOffDays: 8,
+        maxConsecutiveDays: 6,
+        restAfterNight: true,
+        maxDailyHours: 12,
+        maxWeeklyHours: 48,
+        fairness: true,
+        preference: true
+      },
+      schedule: {}
+    };
+  }
+
+  function mergeWithDefaults(parsed){
+    const def = defaultState();
+    parsed = parsed || {};
+    return {
+      employees: Array.isArray(parsed.employees) ? parsed.employees : def.employees,
+      shifts: Array.isArray(parsed.shifts) ? parsed.shifts : def.shifts,
+      rules: Object.assign({}, def.rules, parsed.rules || {}),
+      schedule: (parsed.schedule && typeof parsed.schedule === "object") ? parsed.schedule : def.schedule
+    };
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return mergeWithDefaults(JSON.parse(raw));
+    }catch(e){
+      console.error("讀取本機資料失敗", e);
+    }
+    return defaultState();
+  }
+
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  let state = loadState();
+  enforceLegalLimits();
+
+  /* =========================================================
+   * 確保排班表結構完整
+   * ========================================================= */
+  function ensureScheduleForMonth(){
+    const [y, m] = state.rules.month.split("-").map(Number);
+    const numDays = new Date(y, m, 0).getDate();
+    for (let day = 1; day <= numDays; day++){
+      const dateStr = formatDate(y, m, day);
+      if (!state.schedule[dateStr]) state.schedule[dateStr] = {};
+      state.shifts.forEach(shift => {
+        if (!state.schedule[dateStr][shift.id]) state.schedule[dateStr][shift.id] = [];
+      });
+    }
+  }
+
+  /* =========================================================
+   * 自動排班演算法
+   * ========================================================= */
+  function generateSchedule(){
+    if (state.employees.length === 0 || state.shifts.length === 0){
+      alert(t("alertNeedEmployeesShifts"));
+      return;
+    }
+    if (!confirm(t("confirmGenerateOverwrite"))){
+      return;
+    }
+
+    const { employees, shifts, rules } = state;
+    const [y, m] = rules.month.split("-").map(Number);
+    const numDays = new Date(y, m, 0).getDate();
+    const targetWorkDays = Math.max(numDays - rules.monthlyOffDays, 0);
+
+    const newSchedule = {};
+
+    const consecutiveStreak = {};
+    const workedNightYesterday = {};
+    const assignedCount = {};
+    const workedDaysCount = {};
+    const weeklyHours = {};
+
+    employees.forEach(emp => {
+      consecutiveStreak[emp.id] = 0;
+      workedNightYesterday[emp.id] = false;
+      assignedCount[emp.id] = 0;
+      workedDaysCount[emp.id] = 0;
+      weeklyHours[emp.id] = {};
+    });
+
+    for (let day = 1; day <= numDays; day++){
+      const dateStr = formatDate(y, m, day);
+      const weekKey = getWeekKey(dateStr);
+      newSchedule[dateStr] = {};
+      shifts.forEach(shift => { newSchedule[dateStr][shift.id] = []; });
+
+      const workedToday = new Set();
+
+      shifts.forEach(shift => {
+        const need = shift.requiredCount;
+        const hours = shiftHours(shift);
+
+        let candidates = employees.filter(emp => {
+          if (workedToday.has(emp.id)) return false;
+          if (!emp.allowedShifts.includes(shift.id)) return false;
+          if (emp.unavailableDates.includes(dateStr)) return false;
+          if (shift.isNight && !emp.canNightShift) return false;
+          if (rules.restAfterNight && workedNightYesterday[emp.id]) return false;
+          if (consecutiveStreak[emp.id] >= rules.maxConsecutiveDays) return false;
+          if (hours > rules.maxDailyHours) return false;
+          const wh = weeklyHours[emp.id][weekKey] || 0;
+          if (wh + hours > rules.maxWeeklyHours) return false;
+          return true;
+        });
+
+        candidates.sort((a, b) => {
+          let scoreA = 0, scoreB = 0;
+
+          if (rules.fairness){
+            scoreA += assignedCount[a.id];
+            scoreB += assignedCount[b.id];
+          }
+          if (rules.preference){
+            scoreA += a.preferredShifts.includes(shift.id) ? -5 : 0;
+            scoreB += b.preferredShifts.includes(shift.id) ? -5 : 0;
+          }
+          const remainingDays = numDays - day + 1;
+          const neededA = targetWorkDays - workedDaysCount[a.id];
+          const neededB = targetWorkDays - workedDaysCount[b.id];
+          scoreA += -(neededA / Math.max(remainingDays, 1)) * 3;
+          scoreB += -(neededB / Math.max(remainingDays, 1)) * 3;
+
+          return scoreA - scoreB;
+        });
+
+        const chosen = candidates.slice(0, need);
+        chosen.forEach(emp => {
+          newSchedule[dateStr][shift.id].push(emp.id);
+          workedToday.add(emp.id);
+          assignedCount[emp.id]++;
+          workedDaysCount[emp.id]++;
+          weeklyHours[emp.id][weekKey] = (weeklyHours[emp.id][weekKey] || 0) + hours;
+        });
+      });
+
+      employees.forEach(emp => {
+        consecutiveStreak[emp.id] = workedToday.has(emp.id) ? consecutiveStreak[emp.id] + 1 : 0;
+      });
+
+      employees.forEach(emp => { workedNightYesterday[emp.id] = false; });
+      shifts.filter(s => s.isNight).forEach(shift => {
+        newSchedule[dateStr][shift.id].forEach(empId => { workedNightYesterday[empId] = true; });
+      });
+    }
+
+    Object.keys(newSchedule).forEach(dateStr => { state.schedule[dateStr] = newSchedule[dateStr]; });
+
+    saveState();
+    renderCalendar();
+    showToast(t("toastGenerated"));
+  }
+
+  /* =========================================================
+   * 規則檢查
+   * 日曆格子本身已用紅色標示出「不可上班別/不想上班日/夜班資格/同日重複/
+   * 人數不足/連續上班超標/夜班未休息」等問題，所以下方清單不重複列出，
+   * 只專注列出「規則設定」與「員工偏好」相關、日曆看不出來的問題：
+   *   - 紅色：違反勞基法強制規定（每週工時、法定最低休假天數）
+   *   - 黃色：未達規則設定的目標或未滿足員工偏好（合法，但未盡理想）
+   * ========================================================= */
+  function computeViolations(){
+    const { employees, shifts, rules, schedule } = state;
+    const listViolations = []; // 下方清單顯示用，含 level: "red" | "yellow"
+    let totalCount = 0; // 用於上方「✓/⚠」總體狀態，含日曆已標示紅色的問題
+    const redSlot = new Set();
+    const redChip = new Set();
+
+    const empMap = {}; employees.forEach(e => { empMap[e.id] = e; });
+    const shiftMap = {}; shifts.forEach(s => { shiftMap[s.id] = s; });
+
+    const dates = Object.keys(schedule).sort();
+
+    dates.forEach(date => {
+      const daySchedule = schedule[date];
+      const workedShiftsOfEmp = {};
+
+      Object.keys(daySchedule).forEach(shiftId => {
+        const shift = shiftMap[shiftId];
+        if (!shift) return;
+        const assigned = daySchedule[shiftId];
+
+        if (assigned.length < shift.requiredCount){
+          redSlot.add(`${date}_${shiftId}`);
+          totalCount++;
+        }
+        if (shiftHours(shift) > rules.maxDailyHours){
+          redSlot.add(`${date}_${shiftId}`);
+          totalCount++;
+        }
+
+        assigned.forEach(empId => {
+          const emp = empMap[empId];
+          workedShiftsOfEmp[empId] = workedShiftsOfEmp[empId] || [];
+          workedShiftsOfEmp[empId].push(shiftId);
+
+          if (!emp) return;
+          let bad = false;
+          if (!emp.allowedShifts.includes(shiftId)) bad = true;
+          if (emp.unavailableDates.includes(date)) bad = true;
+          if (shift.isNight && !emp.canNightShift) bad = true;
+          if (bad){ redChip.add(`${date}_${shiftId}_${empId}`); totalCount++; }
+        });
+      });
+
+      Object.keys(workedShiftsOfEmp).forEach(empId => {
+        if (workedShiftsOfEmp[empId].length > 1){
+          totalCount++;
+          workedShiftsOfEmp[empId].forEach(shiftId => redChip.add(`${date}_${shiftId}_${empId}`));
+        }
+      });
+    });
+
+    if (rules.restAfterNight){
+      for (let i = 0; i < dates.length - 1; i++){
+        const date = dates[i], nextDate = dates[i + 1];
+        if (!isNextDay(date, nextDate)) continue;
+
+        const nightWorkers = new Set();
+        Object.keys(schedule[date]).forEach(shiftId => {
+          const shift = shiftMap[shiftId];
+          if (shift && shift.isNight) schedule[date][shiftId].forEach(id => nightWorkers.add(id));
+        });
+
+        const nextDaySchedule = schedule[nextDate];
+        nightWorkers.forEach(empId => {
+          Object.keys(nextDaySchedule).forEach(shiftId => {
+            if (nextDaySchedule[shiftId].includes(empId)){
+              redChip.add(`${nextDate}_${shiftId}_${empId}`);
+              totalCount++;
+            }
+          });
+        });
+      }
+    }
+
+    employees.forEach(emp => {
+      let streak = 0;
+      dates.forEach(date => {
+        const works = Object.keys(schedule[date]).some(shiftId => schedule[date][shiftId].includes(emp.id));
+        if (works){
+          streak++;
+          if (streak > rules.maxConsecutiveDays){
+            totalCount++;
+            Object.keys(schedule[date]).forEach(shiftId => {
+              if (schedule[date][shiftId].includes(emp.id)) redChip.add(`${date}_${shiftId}_${emp.id}`);
+            });
+          }
+        } else {
+          streak = 0;
+        }
+      });
+    });
+
+    // 每週工時超標：日曆無法逐格標示，列入下方清單，違反勞基法 → 紅色
+    const weekHoursMap = {};
+    dates.forEach(date => {
+      const weekKey = getWeekKey(date);
+      Object.keys(schedule[date]).forEach(shiftId => {
+        const shift = shiftMap[shiftId];
+        if (!shift) return;
+        const hours = shiftHours(shift);
+        schedule[date][shiftId].forEach(empId => {
+          weekHoursMap[empId] = weekHoursMap[empId] || {};
+          weekHoursMap[empId][weekKey] = (weekHoursMap[empId][weekKey] || 0) + hours;
+        });
+      });
+    });
+    Object.keys(weekHoursMap).forEach(empId => {
+      const emp = empMap[empId];
+      Object.keys(weekHoursMap[empId]).forEach(weekKey => {
+        const h = weekHoursMap[empId][weekKey];
+        if (h > rules.maxWeeklyHours){
+          listViolations.push({ level: "red", message: t("v_weeklyHours", emp ? emp.name : t("unknownEmployee"), h, rules.maxWeeklyHours) });
+          totalCount++;
+        }
+      });
+    });
+
+    // 休假天數：低於勞基法法定最低天數 → 紅色；合法但未達規則設定目標 → 黃色
+    if (dates.length > 0){
+      const legalMinOffDays = getLegalMinOffDays(dates.length);
+      employees.forEach(emp => {
+        const workedDays = dates.filter(date =>
+          Object.keys(schedule[date]).some(shiftId => schedule[date][shiftId].includes(emp.id))
+        ).length;
+        const offDays = dates.length - workedDays;
+        if (offDays < legalMinOffDays){
+          listViolations.push({ level: "red", message: t("v_offDaysLegal", emp.name, offDays, legalMinOffDays) });
+          totalCount++;
+        } else if (offDays < rules.monthlyOffDays){
+          listViolations.push({ level: "yellow", message: t("v_offDaysTarget", emp.name, offDays, rules.monthlyOffDays) });
+          totalCount++;
+        }
+      });
+    }
+
+    // 員工偏好：有設定偏好班別、本月有上班，但完全沒被排到偏好班別 → 黃色（合法，僅未盡理想）
+    if (rules.preference){
+      employees.forEach(emp => {
+        if (emp.preferredShifts.length === 0) return;
+        let workedDays = 0, matchedDays = 0;
+        dates.forEach(date => {
+          const assignedShiftIds = Object.keys(schedule[date]).filter(shiftId => schedule[date][shiftId].includes(emp.id));
+          if (assignedShiftIds.length > 0){
+            workedDays++;
+            if (assignedShiftIds.some(id => emp.preferredShifts.includes(id))) matchedDays++;
+          }
+        });
+        if (workedDays > 0 && matchedDays === 0){
+          listViolations.push({ level: "yellow", message: t("v_preferenceNotMet", emp.name) });
+          totalCount++;
+        }
+      });
+    }
+
+    return { listViolations, totalCount, redSlot, redChip };
+  }
+
+  /* =========================================================
+   * 畫面渲染
+   * ========================================================= */
+  function renderAll(){
+    renderRulesForm();
+    renderEmployeeList();
+    renderShiftList();
+    renderWeekdayHeader();
+    renderCalendar();
+  }
+
+  function renderRulesForm(){
+    $("ruleMonth").value = state.rules.month;
+    $("ruleMonthlyOffDays").value = state.rules.monthlyOffDays;
+    $("ruleMaxConsecutiveDays").value = state.rules.maxConsecutiveDays;
+    $("ruleRestAfterNight").checked = state.rules.restAfterNight;
+    $("ruleMaxDailyHours").value = state.rules.maxDailyHours;
+    $("ruleMaxWeeklyHours").value = state.rules.maxWeeklyHours;
+    $("ruleFairness").checked = state.rules.fairness;
+    $("rulePreference").checked = state.rules.preference;
+
+    // 法定上限/下限說明文字（月休天數下限會隨月份天數變動，需即時換算）
+    const [y, m] = state.rules.month.split("-").map(Number);
+    const numDays = new Date(y, m, 0).getDate();
+    const minOff = getLegalMinOffDays(numDays);
+    $("ruleMonthlyOffDays").min = minOff;
+    $("legalDisclaimer").textContent = t("legalDisclaimer");
+    $("legalHintMonthlyOff").textContent = t("legalHintMonthlyOff", minOff);
+    $("legalHintMaxConsecutive").textContent = t("legalHintMaxConsecutive");
+    $("legalHintMaxDaily").textContent = t("legalHintMaxDaily");
+    $("legalHintMaxWeekly").textContent = t("legalHintMaxWeekly");
+
+    $("lblPreferenceOverview").textContent = t("lblPreferenceOverview");
+    renderPreferenceOverview();
+  }
+
+  // 員工偏好班別總覽：每當員工資料新增/編輯/刪除，規則設定區會自動同步顯示最新偏好
+  function renderPreferenceOverview(){
+    const container = $("preferenceOverview");
+    const sep = t("listSep");
+    const withPref = state.employees.filter(emp => emp.preferredShifts.length > 0);
+
+    if (withPref.length === 0){
+      container.innerHTML = `<p class="empty-hint">${escapeHtml(t("noPreferenceSet"))}</p>`;
+      return;
+    }
+
+    container.innerHTML = withPref.map(emp => {
+      const names = emp.preferredShifts
+        .map(id => state.shifts.find(s => s.id === id))
+        .filter(Boolean).map(s => s.name).join(sep) || t("noneText");
+      return `<div class="preference-row"><strong>${escapeHtml(emp.name)}</strong><span>${escapeHtml(names)}</span></div>`;
+    }).join("");
+  }
+
+  function renderWeekdayHeader(){
+    $("calendarWeekdays").innerHTML = t("weekdays").map(d => `<div>${escapeHtml(d)}</div>`).join("");
+  }
+
+  function renderEmployeeList(){
+    const container = $("employeeList");
+    if (state.employees.length === 0){
+      container.innerHTML = `<p class="empty-hint">${escapeHtml(t("emptyEmployees"))}</p>`;
+      return;
+    }
+    const sep = t("listSep");
+    container.innerHTML = state.employees.map(emp => {
+      const allowedNames = emp.allowedShifts
+        .map(id => state.shifts.find(s => s.id === id))
+        .filter(Boolean).map(s => s.name).join(sep) || t("noneText");
+      const preferredNames = emp.preferredShifts
+        .map(id => state.shifts.find(s => s.id === id))
+        .filter(Boolean).map(s => s.name).join(sep) || t("noneText");
+
+      const dotColor = colorForEmployee(emp.id).text;
+      return `<div class="item-card">
+        <div class="item-card-header">
+          <span><span class="color-dot" style="background:${dotColor}"></span><strong>${escapeHtml(emp.name)}</strong></span>
+          <span class="badge ${emp.canNightShift ? "badge-yes" : "badge-no"}">${emp.canNightShift ? t("canNightYes") : t("canNightNo")}</span>
+        </div>
+        <div class="item-card-body">
+          <div>${escapeHtml(t("labelAllowed"))}：${escapeHtml(allowedNames)}</div>
+          <div>${escapeHtml(t("labelPreferred"))}：${escapeHtml(preferredNames)}</div>
+          <div>${escapeHtml(t("labelUnavailableCount", emp.unavailableDates.length))}</div>
+        </div>
+        <div class="item-card-actions">
+          <button class="edit-btn" data-id="${emp.id}">${escapeHtml(t("editBtn"))}</button>
+          <button class="delete-btn danger" data-id="${emp.id}">${escapeHtml(t("deleteBtn"))}</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderShiftList(){
+    const container = $("shiftList");
+    if (state.shifts.length === 0){
+      container.innerHTML = `<p class="empty-hint">${escapeHtml(t("emptyShifts"))}</p>`;
+      return;
+    }
+    container.innerHTML = state.shifts.map(shift => {
+      return `<div class="item-card">
+        <div class="item-card-header">
+          <strong>${escapeHtml(shift.name)}</strong>
+          <span class="badge ${shift.isNight ? "badge-yes" : "badge-no"}">${shift.isNight ? t("isNightYes") : t("isNightNo")}</span>
+        </div>
+        <div class="item-card-body">
+          <div>${escapeHtml(t("labelTime", shift.start, shift.end, shiftHours(shift)))}</div>
+          <div>${escapeHtml(t("labelRequired", shift.requiredCount))}</div>
+        </div>
+        <div class="item-card-actions">
+          <button class="edit-btn" data-id="${shift.id}">${escapeHtml(t("editBtn"))}</button>
+          <button class="delete-btn danger" data-id="${shift.id}">${escapeHtml(t("deleteBtn"))}</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // 放大檢視 modal 目前開啟的日期（沒開啟時為 null），與目前縮放比例（%）
+  let currentZoomDate = null;
+  let zoomLevel = 150;
+  // 最近一次計算出的違規標記，供放大檢視 modal 重新整理內容時使用
+  let lastRedSlot = new Set();
+  let lastRedChip = new Set();
+
+  // 產生某一天的班別卡片 HTML，日曆格與放大檢視 modal 共用同一份邏輯
+  function buildDayShiftsHtml(dateStr, redSlot, redChip){
+    const daySchedule = state.schedule[dateStr] || {};
+
+    return state.shifts.map(shift => {
+      const assigned = daySchedule[shift.id] || [];
+      const slotKey = `${dateStr}_${shift.id}`;
+      const isSlotRed = redSlot.has(slotKey);
+
+      const chipsHtml = assigned.map(empId => {
+        const emp = state.employees.find(e => e.id === empId);
+        const chipKey = `${dateStr}_${shift.id}_${empId}`;
+        const isChipRed = redChip.has(chipKey);
+        const colorStyle = isChipRed ? "" : (() => {
+          const c = colorForEmployee(empId);
+          return ` style="background:${c.bg};color:${c.text};"`;
+        })();
+        return `<span class="chip ${isChipRed ? "chip-violation" : ""}"${colorStyle}>${emp ? escapeHtml(emp.name) : escapeHtml(t("unknownEmployee"))}<button type="button" class="chip-remove" data-date="${dateStr}" data-shift="${shift.id}" data-emp="${empId}">×</button></span>`;
+      }).join("");
+
+      return `<div class="shift-slot ${isSlotRed ? "slot-violation" : ""} ${shift.isNight ? "night-slot" : ""}">
+        <div class="slot-header"><span>${escapeHtml(shift.name)}</span><span class="slot-count">${assigned.length}/${shift.requiredCount}</span></div>
+        <div class="slot-chips">${chipsHtml}</div>
+        <select class="add-select" data-date="${dateStr}" data-shift="${shift.id}">
+          <option value="">${escapeHtml(t("addEmployeeOption"))}</option>
+          ${state.employees.filter(e => !assigned.includes(e.id)).map(e => `<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("")}
+        </select>
+      </div>`;
+    }).join("");
+  }
+
+  function renderCalendar(){
+    ensureScheduleForMonth();
+
+    const [y, m] = state.rules.month.split("-").map(Number);
+    const numDays = new Date(y, m, 0).getDate();
+    const firstWeekday = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+
+    $("calendarMonthLabel").textContent = t("monthLabel", y, m);
+
+    const { listViolations, totalCount, redSlot, redChip } = computeViolations();
+    lastRedSlot = redSlot;
+    lastRedChip = redChip;
+
+    let html = "";
+    for (let i = 0; i < firstWeekday; i++){
+      html += `<div class="calendar-cell empty"></div>`;
+    }
+
+    for (let day = 1; day <= numDays; day++){
+      const dateStr = formatDate(y, m, day);
+
+      html += `<div class="calendar-cell">
+        <div class="cell-date">${day}</div>
+        <div class="cell-shifts">${buildDayShiftsHtml(dateStr, redSlot, redChip)}</div>
+        <button type="button" class="cell-zoom-btn" data-date="${dateStr}" title="${escapeHtml(t("zoomTooltip"))}">⊕</button>
+      </div>`;
+    }
+
+    $("calendarGrid").innerHTML = html;
+
+    const summaryEl = $("statusSummary");
+    if (totalCount === 0){
+      summaryEl.innerHTML = `<div class="status-ok">${escapeHtml(t("statusOk"))}</div>`;
+    } else {
+      summaryEl.innerHTML = `<div class="status-bad">${escapeHtml(t("statusBad", totalCount))}</div>`;
+    }
+    $("violationList").innerHTML = listViolations.map(v =>
+      `<li class="${v.level === "red" ? "violation-red" : "violation-yellow"}">${escapeHtml(v.message)}</li>`
+    ).join("");
+  }
+
+  /* =========================================================
+   * 手動調整班表
+   * ========================================================= */
+  function addToSlot(date, shiftId, empId){
+    if (!empId) return;
+    if (!state.schedule[date]) state.schedule[date] = {};
+    if (!state.schedule[date][shiftId]) state.schedule[date][shiftId] = [];
+    if (state.schedule[date][shiftId].includes(empId)) return;
+    state.schedule[date][shiftId].push(empId);
+    saveState();
+    renderCalendar();
+    refreshZoomContent();
+  }
+
+  function removeFromSlot(date, shiftId, empId){
+    if (!state.schedule[date] || !state.schedule[date][shiftId]) return;
+    state.schedule[date][shiftId] = state.schedule[date][shiftId].filter(id => id !== empId);
+    saveState();
+    renderCalendar();
+    refreshZoomContent();
+  }
+
+  /* =========================================================
+   * 放大檢視單日班表（日曆格右下角的放大鏡）
+   * ========================================================= */
+  function refreshZoomContent(){
+    if (!currentZoomDate) return;
+    $("zoomContent").innerHTML = buildDayShiftsHtml(currentZoomDate, lastRedSlot, lastRedChip);
+  }
+
+  function applyZoomLevel(){
+    $("zoomPercentLabel").textContent = `${zoomLevel}%`;
+    $("zoomContent").style.transform = `scale(${zoomLevel / 100})`;
+  }
+
+  function openZoomModal(dateStr){
+    currentZoomDate = dateStr;
+    $("zoomModalTitle").textContent = dateStr;
+    $("zoomSlider").value = zoomLevel;
+    applyZoomLevel();
+    refreshZoomContent();
+    $("zoomModal").classList.remove("hidden");
+  }
+
+  function closeZoomModal(){
+    currentZoomDate = null;
+    $("zoomModal").classList.add("hidden");
+  }
+
+  /* =========================================================
+   * 員工 Modal
+   * ========================================================= */
+  let modalUnavailableDates = [];
+
+  function renderShiftCheckboxes(containerId, selectedIds){
+    const container = $(containerId);
+    if (state.shifts.length === 0){
+      container.innerHTML = `<span class="empty-hint">${escapeHtml(t("emptyNeedShiftsFirst"))}</span>`;
+      return;
+    }
+    container.innerHTML = state.shifts.map(shift => {
+      const checked = selectedIds.includes(shift.id) ? "checked" : "";
+      return `<label><input type="checkbox" value="${shift.id}" ${checked}> ${escapeHtml(shift.name)}</label>`;
+    }).join("");
+  }
+
+  function renderUnavailableTags(){
+    const container = $("employeeUnavailableList");
+    container.innerHTML = modalUnavailableDates.map((d, idx) =>
+      `<span class="tag">${escapeHtml(d)}<button type="button" data-idx="${idx}">×</button></span>`
+    ).join("");
+  }
+
+  function openEmployeeModal(employeeId){
+    const emp = employeeId ? state.employees.find(e => e.id === employeeId) : null;
+
+    $("employeeModalTitle").textContent = emp ? t("titleEditEmployee") : t("titleAddEmployee");
+    $("employeeId").value = emp ? emp.id : "";
+    $("employeeName").value = emp ? emp.name : "";
+    $("employeeCanNight").checked = emp ? emp.canNightShift : false;
+
+    modalUnavailableDates = emp ? emp.unavailableDates.slice() : [];
+    renderUnavailableTags();
+    $("employeeUnavailableInput").value = "";
+
+    renderShiftCheckboxes("employeeAllowedShifts", emp ? emp.allowedShifts : []);
+    renderShiftCheckboxes("employeePreferredShifts", emp ? emp.preferredShifts : []);
+
+    $("employeeModal").classList.remove("hidden");
+  }
+
+  function closeEmployeeModal(){
+    $("employeeModal").classList.add("hidden");
+  }
+
+  function saveEmployeeFromModal(){
+    const name = $("employeeName").value.trim();
+    if (!name){
+      alert(t("alertNeedName"));
+      return;
+    }
+    const allowedShifts = Array.from($("employeeAllowedShifts").querySelectorAll("input:checked")).map(i => i.value);
+    const preferredShifts = Array.from($("employeePreferredShifts").querySelectorAll("input:checked")).map(i => i.value);
+    const canNightShift = $("employeeCanNight").checked;
+    const editingId = $("employeeId").value;
+
+    if (editingId){
+      const emp = state.employees.find(e => e.id === editingId);
+      emp.name = name;
+      emp.allowedShifts = allowedShifts;
+      emp.preferredShifts = preferredShifts;
+      emp.unavailableDates = modalUnavailableDates.slice();
+      emp.canNightShift = canNightShift;
+    } else {
+      state.employees.push({
+        id: uid("emp"),
+        name, allowedShifts, preferredShifts,
+        unavailableDates: modalUnavailableDates.slice(),
+        canNightShift
+      });
+    }
+
+    saveState();
+    closeEmployeeModal();
+    renderAll();
+    showToast(t("toastEmployeeSaved"));
+  }
+
+  function deleteEmployee(employeeId){
+    const emp = state.employees.find(e => e.id === employeeId);
+    if (!emp) return;
+    if (!confirm(t("confirmDeleteEmployee", emp.name))) return;
+
+    state.employees = state.employees.filter(e => e.id !== employeeId);
+    Object.keys(state.schedule).forEach(date => {
+      Object.keys(state.schedule[date]).forEach(shiftId => {
+        state.schedule[date][shiftId] = state.schedule[date][shiftId].filter(id => id !== employeeId);
+      });
+    });
+
+    saveState();
+    renderAll();
+    showToast(t("toastEmployeeDeleted"));
+  }
+
+  /* =========================================================
+   * 班別 Modal
+   * ========================================================= */
+  // 用下拉選單直接選「幾點幾分」，不需要靠 time input 的上下鍵微調
+  function populateTimeSelects(){
+    const hourOptions = Array.from({ length: 24 }, (_, h) => `<option value="${pad(h)}">${pad(h)}</option>`).join("");
+    const minuteOptions = Array.from({ length: 60 }, (_, mi) => `<option value="${pad(mi)}">${pad(mi)}</option>`).join("");
+    $("shiftStartHour").innerHTML = hourOptions;
+    $("shiftStartMinute").innerHTML = minuteOptions;
+    $("shiftEndHour").innerHTML = hourOptions;
+    $("shiftEndMinute").innerHTML = minuteOptions;
+  }
+
+  function openShiftModal(shiftId){
+    const shift = shiftId ? state.shifts.find(s => s.id === shiftId) : null;
+
+    $("shiftModalTitle").textContent = shift ? t("titleEditShift") : t("titleAddShift");
+    $("shiftId").value = shift ? shift.id : "";
+    $("shiftName").value = shift ? shift.name : "";
+
+    const [startH, startM] = (shift ? shift.start : "00:00").split(":");
+    const [endH, endM] = (shift ? shift.end : "00:00").split(":");
+    $("shiftStartHour").value = startH;
+    $("shiftStartMinute").value = startM;
+    $("shiftEndHour").value = endH;
+    $("shiftEndMinute").value = endM;
+
+    $("shiftRequired").value = shift ? shift.requiredCount : 1;
+    $("shiftIsNight").checked = shift ? shift.isNight : false;
+
+    $("shiftModal").classList.remove("hidden");
+  }
+
+  function closeShiftModal(){
+    $("shiftModal").classList.add("hidden");
+  }
+
+  function saveShiftFromModal(){
+    const name = $("shiftName").value.trim();
+    const start = `${$("shiftStartHour").value}:${$("shiftStartMinute").value}`;
+    const end = `${$("shiftEndHour").value}:${$("shiftEndMinute").value}`;
+    const requiredCount = parseInt($("shiftRequired").value, 10);
+    const isNight = $("shiftIsNight").checked;
+    const editingId = $("shiftId").value;
+
+    if (!name || !requiredCount || requiredCount < 1){
+      alert(t("alertShiftIncomplete"));
+      return;
+    }
+
+    if (editingId){
+      const shift = state.shifts.find(s => s.id === editingId);
+      shift.name = name;
+      shift.start = start;
+      shift.end = end;
+      shift.requiredCount = requiredCount;
+      shift.isNight = isNight;
+    } else {
+      state.shifts.push({ id: uid("shift"), name, start, end, requiredCount, isNight });
+    }
+
+    saveState();
+    closeShiftModal();
+    renderAll();
+    showToast(t("toastShiftSaved"));
+  }
+
+  function deleteShift(shiftId){
+    const shift = state.shifts.find(s => s.id === shiftId);
+    if (!shift) return;
+    if (!confirm(t("confirmDeleteShift", shift.name))) return;
+
+    state.shifts = state.shifts.filter(s => s.id !== shiftId);
+    state.employees.forEach(emp => {
+      emp.allowedShifts = emp.allowedShifts.filter(id => id !== shiftId);
+      emp.preferredShifts = emp.preferredShifts.filter(id => id !== shiftId);
+    });
+    Object.keys(state.schedule).forEach(date => {
+      delete state.schedule[date][shiftId];
+    });
+
+    saveState();
+    renderAll();
+    showToast(t("toastShiftDeleted"));
+  }
+
+  /* =========================================================
+   * 匯出 / 匯入 / 清除
+   * ========================================================= */
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `排班資料_${state.rules.month}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importJSON(file){
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try{
+        const parsed = JSON.parse(evt.target.result);
+        state = mergeWithDefaults(parsed);
+        enforceLegalLimits();
+        saveState();
+        renderAll();
+        showToast(t("toastImportSuccess"));
+      }catch(err){
+        alert(t("alertImportFail"));
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function clearAllData(){
+    if (!confirm(t("confirmClearAll"))) return;
+    state = defaultState();
+    saveState();
+    renderAll();
+    showToast(t("toastCleared"));
+  }
+
+  /* =========================================================
+   * 事件綁定
+   * ========================================================= */
+  function bindEvents(){
+    $("btnAddEmployee").addEventListener("click", () => openEmployeeModal(null));
+    $("btnAddShift").addEventListener("click", () => openShiftModal(null));
+    $("btnGenerate").addEventListener("click", generateSchedule);
+    $("btnSave").addEventListener("click", () => { saveState(); showToast(t("toastSaved")); });
+    $("btnExport").addEventListener("click", exportJSON);
+    $("btnImport").addEventListener("click", () => $("fileImport").click());
+    $("fileImport").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) importJSON(file);
+      e.target.value = "";
+    });
+    $("btnClear").addEventListener("click", clearAllData);
+    $("btnTheme").addEventListener("click", toggleTheme);
+    $("btnLang").addEventListener("click", toggleLanguage);
+
+    $("ruleMonth").addEventListener("change", e => {
+      state.rules.month = e.target.value;
+      const [y, m] = state.rules.month.split("-").map(Number);
+      const numDays = new Date(y, m, 0).getDate();
+      const minOff = getLegalMinOffDays(numDays);
+      if (state.rules.monthlyOffDays < minOff){
+        state.rules.monthlyOffDays = minOff;
+        showToast(t("toastOffDaysFloored", minOff));
+      }
+      saveState();
+      renderRulesForm();
+      renderCalendar();
+    });
+    $("ruleMonthlyOffDays").addEventListener("input", e => {
+      let v = Number(e.target.value) || 0;
+      const [y, m] = state.rules.month.split("-").map(Number);
+      const numDays = new Date(y, m, 0).getDate();
+      const minOff = getLegalMinOffDays(numDays);
+      if (v < minOff){
+        v = minOff;
+        e.target.value = v;
+        showToast(t("toastOffDaysFloored", minOff));
+      }
+      state.rules.monthlyOffDays = v;
+      saveState();
+      renderCalendar();
+    });
+    $("ruleMaxConsecutiveDays").addEventListener("input", e => {
+      let v = Number(e.target.value) || 1;
+      if (v > LABOR_LAW.MAX_CONSECUTIVE_DAYS){
+        v = LABOR_LAW.MAX_CONSECUTIVE_DAYS;
+        e.target.value = v;
+        showToast(t("toastConsecutiveCapped", LABOR_LAW.MAX_CONSECUTIVE_DAYS));
+      }
+      state.rules.maxConsecutiveDays = v;
+      saveState();
+      renderCalendar();
+    });
+    $("ruleRestAfterNight").addEventListener("change", e => { state.rules.restAfterNight = e.target.checked; saveState(); renderCalendar(); });
+    $("ruleMaxDailyHours").addEventListener("input", e => {
+      let v = Number(e.target.value) || 1;
+      if (v > LABOR_LAW.MAX_DAILY_HOURS){
+        v = LABOR_LAW.MAX_DAILY_HOURS;
+        e.target.value = v;
+        showToast(t("toastDailyHoursCapped", LABOR_LAW.MAX_DAILY_HOURS));
+      }
+      state.rules.maxDailyHours = v;
+      saveState();
+      renderCalendar();
+    });
+    $("ruleMaxWeeklyHours").addEventListener("input", e => {
+      let v = Number(e.target.value) || 1;
+      if (v > LABOR_LAW.MAX_WEEKLY_HOURS){
+        v = LABOR_LAW.MAX_WEEKLY_HOURS;
+        e.target.value = v;
+        showToast(t("toastWeeklyHoursCapped", LABOR_LAW.MAX_WEEKLY_HOURS));
+      }
+      state.rules.maxWeeklyHours = v;
+      saveState();
+      renderCalendar();
+    });
+    $("ruleFairness").addEventListener("change", e => { state.rules.fairness = e.target.checked; saveState(); });
+    $("rulePreference").addEventListener("change", e => { state.rules.preference = e.target.checked; saveState(); });
+
+    $("employeeList").addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.classList.contains("edit-btn")) openEmployeeModal(btn.dataset.id);
+      else if (btn.classList.contains("delete-btn")) deleteEmployee(btn.dataset.id);
+    });
+
+    $("shiftList").addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.classList.contains("edit-btn")) openShiftModal(btn.dataset.id);
+      else if (btn.classList.contains("delete-btn")) deleteShift(btn.dataset.id);
+    });
+
+    $("btnAddUnavailableDate").addEventListener("click", () => {
+      const val = $("employeeUnavailableInput").value;
+      if (val && !modalUnavailableDates.includes(val)){
+        modalUnavailableDates.push(val);
+        modalUnavailableDates.sort();
+        renderUnavailableTags();
+        $("employeeUnavailableInput").value = "";
+      }
+    });
+    $("employeeUnavailableList").addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      modalUnavailableDates.splice(Number(btn.dataset.idx), 1);
+      renderUnavailableTags();
+    });
+    $("btnSaveEmployee").addEventListener("click", saveEmployeeFromModal);
+    $("btnCancelEmployee").addEventListener("click", closeEmployeeModal);
+
+    $("btnSaveShift").addEventListener("click", saveShiftFromModal);
+    $("btnCancelShift").addEventListener("click", closeShiftModal);
+
+    $("calendarGrid").addEventListener("click", e => {
+      const zoomBtn = e.target.closest(".cell-zoom-btn");
+      if (zoomBtn){ openZoomModal(zoomBtn.dataset.date); return; }
+      const btn = e.target.closest(".chip-remove");
+      if (btn) removeFromSlot(btn.dataset.date, btn.dataset.shift, btn.dataset.emp);
+    });
+    $("calendarGrid").addEventListener("change", e => {
+      if (e.target.classList.contains("add-select")){
+        addToSlot(e.target.dataset.date, e.target.dataset.shift, e.target.value);
+      }
+    });
+
+    // 放大檢視 modal：內容區也能新增/移除員工，並用滑桿調整縮放比例
+    $("zoomContent").addEventListener("click", e => {
+      const btn = e.target.closest(".chip-remove");
+      if (btn) removeFromSlot(btn.dataset.date, btn.dataset.shift, btn.dataset.emp);
+    });
+    $("zoomContent").addEventListener("change", e => {
+      if (e.target.classList.contains("add-select")){
+        addToSlot(e.target.dataset.date, e.target.dataset.shift, e.target.value);
+      }
+    });
+    $("zoomSlider").addEventListener("input", e => {
+      zoomLevel = Number(e.target.value);
+      applyZoomLevel();
+    });
+    $("btnCloseZoom").addEventListener("click", closeZoomModal);
+    $("zoomModal").addEventListener("click", e => { if (e.target.id === "zoomModal") closeZoomModal(); });
+
+    $("employeeModal").addEventListener("click", e => { if (e.target.id === "employeeModal") closeEmployeeModal(); });
+    $("shiftModal").addEventListener("click", e => { if (e.target.id === "shiftModal") closeShiftModal(); });
+  }
+
+  /* =========================================================
+   * 初始化
+   * ========================================================= */
+  populateTimeSelects();
+  bindEvents();
+  applyTheme();
+  applyLanguage(); // applyLanguage 內部會呼叫 renderAll()
+
+})();
+</script>
+</body>
+</html>
