@@ -124,6 +124,21 @@
   .toolbar-buttons{ display:flex; flex-wrap:wrap; gap:8px; }
   .toolbar-divider{ width:1px; background: var(--color-border); margin:0 4px; align-self:stretch; }
 
+  .calendar-panel{ position:relative; padding-bottom:56px; }
+  .zoom-trigger-btn{
+    position:absolute; bottom:12px; right:12px;
+    width:42px; height:42px; padding:0; line-height:1; font-size:24px;
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 4px rgba(0,0,0,.2); z-index:5;
+  }
+  .zoom-popover{
+    position:absolute; bottom:62px; right:12px; z-index:6;
+    display:flex; align-items:center; gap:8px;
+    background: var(--color-card); border:1px solid var(--color-border); border-radius:8px;
+    padding:8px 12px; font-size:13px; box-shadow:0 2px 10px rgba(0,0,0,.2);
+  }
+  .zoom-popover input[type="range"]{ width:130px; }
+
   .first-time-note{
     background: var(--color-note-bg);
     color: var(--color-note-text);
@@ -149,6 +164,34 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding:14px;
+  }
+
+  /* ====== 左側區塊可收合/展開 ====== */
+  .collapsible-header{
+    cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+    user-select:none;
+  }
+  .collapse-toggle{
+    font-size:12px; color: var(--color-text-light);
+    transition: transform .15s ease; flex-shrink:0; margin-left:8px;
+  }
+  .panel-block.collapsed .collapse-toggle{ transform: rotate(-90deg); }
+
+  /* 收合時內容往左滑出並淡出，外層高度同時收起，讓下方區塊往上補位 */
+  .collapsible-content{
+    max-height:2000px;
+    overflow:hidden;
+    transition: max-height .25s ease;
+  }
+  .collapsible-content-inner{
+    transition: transform .25s ease, opacity .2s ease;
+    transform: translateX(0);
+    opacity:1;
+  }
+  .panel-block.collapsed .collapsible-content{ max-height:0; }
+  .panel-block.collapsed .collapsible-content-inner{
+    transform: translateX(-100%);
+    opacity:0;
   }
 
   /* ====== 員工 / 班別卡片清單 ====== */
@@ -205,12 +248,10 @@
     padding:4px 0;
   }
   .calendar-cell{
-    position:relative;
     border:1px solid var(--color-border);
     border-radius:6px;
     min-height:180px;
     padding:6px;
-    padding-bottom:28px;
     background: var(--color-cell-bg);
     display:flex;
     flex-direction:column;
@@ -218,12 +259,6 @@
   }
   .calendar-cell.empty{ background:transparent; border:none; }
   .cell-date{ font-weight:600; font-size:13px; }
-  .cell-zoom-btn{
-    position:absolute; bottom:4px; right:4px;
-    width:22px; height:22px; padding:0; line-height:1;
-    font-size:14px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-  }
   .cell-shifts{ display:flex; flex-direction:column; gap:6px; }
   .shift-slot{
     background: var(--color-slot-bg);
@@ -290,18 +325,9 @@
   .checkbox-grid label{ margin:0; display:flex; align-items:center; gap:4px; width:auto; font-weight:400; }
   .checkbox-grid input{ width:auto; }
 
-  /* ====== 放大檢視 Modal ====== */
-  .zoom-modal{ max-width:560px; }
-  .zoom-slider-row{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:13px; }
-  .zoom-slider-row input[type="range"]{ flex:1; width:auto; }
-  .zoom-percent{ min-width:42px; text-align:right; color: var(--color-text-light); }
-  .zoom-viewport{
-    overflow:auto; max-height:50vh;
-    border:1px solid var(--color-border); border-radius:6px;
-    padding:10px; background: var(--color-cell-bg);
-  }
-  .zoom-content{ transform-origin: top left; width:260px; }
-  .zoom-content .cell-shifts{ display:flex; flex-direction:column; gap:8px; }
+  /* ====== 整個日曆原地縮放（不開新視窗） ====== */
+  .zoom-percent{ min-width:38px; text-align:right; color: var(--color-text-light); }
+  .calendar-scale-wrapper{ transform-origin: top left; width:max-content; transition: transform .1s ease; }
 
   /* ====== Toast ====== */
   .toast{
@@ -337,18 +363,37 @@
     <!-- 左側設定區 -->
     <section class="left-panel">
 
-      <div class="panel-block">
-        <h2 id="lblSectionEmployees">員工管理</h2>
-        <div id="employeeList" class="item-list"></div>
+      <div class="panel-block" data-section="employees">
+        <h2 class="collapsible-header">
+          <span id="lblSectionEmployees">員工管理</span>
+          <span class="collapse-toggle">▾</span>
+        </h2>
+        <div class="collapsible-content">
+          <div class="collapsible-content-inner">
+            <div id="employeeList" class="item-list"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="panel-block">
-        <h2 id="lblSectionShifts">班別管理</h2>
-        <div id="shiftList" class="item-list"></div>
+      <div class="panel-block" data-section="shifts">
+        <h2 class="collapsible-header">
+          <span id="lblSectionShifts">班別管理</span>
+          <span class="collapse-toggle">▾</span>
+        </h2>
+        <div class="collapsible-content">
+          <div class="collapsible-content-inner">
+            <div id="shiftList" class="item-list"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="panel-block">
-        <h2 id="lblSectionRules">規則設定</h2>
+      <div class="panel-block" data-section="rules">
+        <h2 class="collapsible-header">
+          <span id="lblSectionRules">規則設定</span>
+          <span class="collapse-toggle">▾</span>
+        </h2>
+        <div class="collapsible-content">
+        <div class="collapsible-content-inner">
         <p id="legalDisclaimer" class="legal-disclaimer"></p>
         <form id="rulesForm" class="rules-form" onsubmit="return false;">
           <label><span id="lblRuleMonth">排班月份</span>
@@ -382,6 +427,8 @@
           <div id="lblPreferenceOverview" class="sub-label">員工偏好班別總覽</div>
           <div id="preferenceOverview" class="preference-overview"></div>
         </form>
+        </div>
+        </div>
       </div>
 
     </section>
@@ -389,12 +436,20 @@
     <!-- 右側班表預覽區 -->
     <section class="right-panel">
 
-      <div class="panel-block">
+      <div class="panel-block calendar-panel">
         <h2><span id="lblSectionCalendar">班表預覽</span> - <span id="calendarMonthLabel"></span></h2>
         <div class="calendar-scroll">
-          <div id="calendarWeekdays" class="calendar-weekdays"></div>
-          <div id="calendarGrid" class="calendar-grid"></div>
+          <div id="calendarScaleWrapper" class="calendar-scale-wrapper">
+            <div id="calendarWeekdays" class="calendar-weekdays"></div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+          </div>
         </div>
+        <div id="zoomPopover" class="zoom-popover hidden">
+          <span id="lblZoomLevel">縮放</span>
+          <input type="range" id="zoomSlider" min="80" max="250" step="10" value="100">
+          <span id="zoomPercentLabel" class="zoom-percent">100%</span>
+        </div>
+        <button type="button" id="btnZoomCalendar" class="zoom-trigger-btn" title="">⊕</button>
       </div>
 
       <div class="panel-block">
@@ -477,24 +532,6 @@
       <div class="modal-actions">
         <button id="btnCancelShift">取消</button>
         <button id="btnSaveShift" class="primary">儲存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 放大檢視單日班表 Modal -->
-  <div id="zoomModal" class="modal-overlay hidden">
-    <div class="modal zoom-modal">
-      <h3 id="zoomModalTitle"></h3>
-      <div class="zoom-slider-row">
-        <span id="lblZoomLevel">縮放</span>
-        <input type="range" id="zoomSlider" min="100" max="300" step="10" value="150">
-        <span id="zoomPercentLabel" class="zoom-percent">150%</span>
-      </div>
-      <div class="zoom-viewport">
-        <div id="zoomContent" class="zoom-content"></div>
-      </div>
-      <div class="modal-actions">
-        <button id="btnCloseZoom">取消</button>
       </div>
     </div>
   </div>
@@ -713,7 +750,7 @@
       noPreferenceSet: "尚無員工設定偏好班別",
       firstTimeNote: "※ 若是初次排班，請先「新增班別」，再「新增員工」設定該員工的可上班別與偏好班別。",
       lblZoomLevel: "縮放",
-      zoomTooltip: "放大檢視這一天"
+      zoomTooltip: "放大檢視整月班表"
     },
     en: {
       appTitle: "Auto Scheduling System",
@@ -812,7 +849,7 @@
       noPreferenceSet: "No employees have set shift preferences yet",
       firstTimeNote: "※ First time scheduling? Please \"Add Shift\" first, then \"Add Employee\" to set that employee's allowed/preferred shifts.",
       lblZoomLevel: "Zoom",
-      zoomTooltip: "Enlarge this day"
+      zoomTooltip: "Enlarge the whole month view"
     }
   };
 
@@ -824,7 +861,9 @@
   /* =========================================================
    * UI 偏好設定（語言 / 主題），與排班資料分開儲存
    * ========================================================= */
-  function defaultUiPrefs(){ return { lang: "zh", theme: "light" }; }
+  function defaultUiPrefs(){
+    return { lang: "zh", theme: "light", collapsed: { employees: false, shifts: false, rules: false } };
+  }
 
   function loadUiPrefs(){
     try{
@@ -847,6 +886,20 @@
     uiPrefs.theme = uiPrefs.theme === "dark" ? "light" : "dark";
     saveUiPrefs();
     applyTheme();
+  }
+
+  // 左側「員工管理/班別管理/規則設定」可收合，狀態記住在 uiPrefs 裡，重新整理後維持原狀
+  function applyCollapsedState(){
+    document.querySelectorAll(".panel-block[data-section]").forEach(panel => {
+      const section = panel.dataset.section;
+      panel.classList.toggle("collapsed", !!uiPrefs.collapsed[section]);
+    });
+  }
+
+  function toggleSectionCollapse(panel){
+    panel.classList.toggle("collapsed");
+    uiPrefs.collapsed[panel.dataset.section] = panel.classList.contains("collapsed");
+    saveUiPrefs();
   }
 
   // 套用所有靜態文字（按鈕、標題、表單標籤等），並重新渲染動態內容
@@ -896,7 +949,7 @@
     $("btnSaveShift").textContent = t("btnSaveModal");
 
     $("lblZoomLevel").textContent = t("lblZoomLevel");
-    $("btnCloseZoom").textContent = t("btnCancel");
+    $("btnZoomCalendar").title = t("zoomTooltip");
 
     applyTheme(); // 主題按鈕文字也需要跟著語言更新
     renderAll();
@@ -1362,26 +1415,25 @@
     }).join("");
   }
 
-  // 放大檢視 modal 目前開啟的日期（沒開啟時為 null），與目前縮放比例（%）
-  let currentZoomDate = null;
-  let zoomLevel = 150;
-  // 最近一次計算出的違規標記，供放大檢視 modal 重新整理內容時使用
+  // 目前日曆整體縮放比例（%），點放大鏡後可用滑桿調整
+  let zoomLevel = 100;
+  // 最近一次計算出的違規標記
   let lastRedSlot = new Set();
   let lastRedChip = new Set();
 
-  // 產生某一天的班別卡片 HTML，日曆格與放大檢視 modal 共用同一份邏輯
-  function buildDayShiftsHtml(dateStr, redSlot, redChip){
+  // 產生某一天的班別卡片 HTML
+  function buildDayShiftsHtml(dateStr){
     const daySchedule = state.schedule[dateStr] || {};
 
     return state.shifts.map(shift => {
       const assigned = daySchedule[shift.id] || [];
       const slotKey = `${dateStr}_${shift.id}`;
-      const isSlotRed = redSlot.has(slotKey);
+      const isSlotRed = lastRedSlot.has(slotKey);
 
       const chipsHtml = assigned.map(empId => {
         const emp = state.employees.find(e => e.id === empId);
         const chipKey = `${dateStr}_${shift.id}_${empId}`;
-        const isChipRed = redChip.has(chipKey);
+        const isChipRed = lastRedChip.has(chipKey);
         const colorStyle = isChipRed ? "" : (() => {
           const c = colorForEmployee(empId);
           return ` style="background:${c.bg};color:${c.text};"`;
@@ -1400,35 +1452,37 @@
     }).join("");
   }
 
-  function renderCalendar(){
-    ensureScheduleForMonth();
-
+  // 產生整月所有日期格子的 HTML（不含星期標頭）
+  function buildCalendarBodyHtml(){
     const [y, m] = state.rules.month.split("-").map(Number);
     const numDays = new Date(y, m, 0).getDate();
     const firstWeekday = (new Date(y, m - 1, 1).getDay() + 6) % 7;
 
+    let html = "";
+    for (let i = 0; i < firstWeekday; i++){
+      html += `<div class="calendar-cell empty"></div>`;
+    }
+    for (let day = 1; day <= numDays; day++){
+      const dateStr = formatDate(y, m, day);
+      html += `<div class="calendar-cell">
+        <div class="cell-date">${day}</div>
+        <div class="cell-shifts">${buildDayShiftsHtml(dateStr)}</div>
+      </div>`;
+    }
+    return html;
+  }
+
+  function renderCalendar(){
+    ensureScheduleForMonth();
+
+    const [y, m] = state.rules.month.split("-").map(Number);
     $("calendarMonthLabel").textContent = t("monthLabel", y, m);
 
     const { listViolations, totalCount, redSlot, redChip } = computeViolations();
     lastRedSlot = redSlot;
     lastRedChip = redChip;
 
-    let html = "";
-    for (let i = 0; i < firstWeekday; i++){
-      html += `<div class="calendar-cell empty"></div>`;
-    }
-
-    for (let day = 1; day <= numDays; day++){
-      const dateStr = formatDate(y, m, day);
-
-      html += `<div class="calendar-cell">
-        <div class="cell-date">${day}</div>
-        <div class="cell-shifts">${buildDayShiftsHtml(dateStr, redSlot, redChip)}</div>
-        <button type="button" class="cell-zoom-btn" data-date="${dateStr}" title="${escapeHtml(t("zoomTooltip"))}">⊕</button>
-      </div>`;
-    }
-
-    $("calendarGrid").innerHTML = html;
+    $("calendarGrid").innerHTML = buildCalendarBodyHtml();
 
     const summaryEl = $("statusSummary");
     if (totalCount === 0){
@@ -1452,7 +1506,6 @@
     state.schedule[date][shiftId].push(empId);
     saveState();
     renderCalendar();
-    refreshZoomContent();
   }
 
   function removeFromSlot(date, shiftId, empId){
@@ -1460,34 +1513,18 @@
     state.schedule[date][shiftId] = state.schedule[date][shiftId].filter(id => id !== empId);
     saveState();
     renderCalendar();
-    refreshZoomContent();
   }
 
   /* =========================================================
-   * 放大檢視單日班表（日曆格右下角的放大鏡）
+   * 整個日曆原地縮放（不開新視窗，點放大鏡顯示滑桿，直接縮放目前畫面）
    * ========================================================= */
-  function refreshZoomContent(){
-    if (!currentZoomDate) return;
-    $("zoomContent").innerHTML = buildDayShiftsHtml(currentZoomDate, lastRedSlot, lastRedChip);
-  }
-
   function applyZoomLevel(){
     $("zoomPercentLabel").textContent = `${zoomLevel}%`;
-    $("zoomContent").style.transform = `scale(${zoomLevel / 100})`;
+    $("calendarScaleWrapper").style.transform = `scale(${zoomLevel / 100})`;
   }
 
-  function openZoomModal(dateStr){
-    currentZoomDate = dateStr;
-    $("zoomModalTitle").textContent = dateStr;
-    $("zoomSlider").value = zoomLevel;
-    applyZoomLevel();
-    refreshZoomContent();
-    $("zoomModal").classList.remove("hidden");
-  }
-
-  function closeZoomModal(){
-    currentZoomDate = null;
-    $("zoomModal").classList.add("hidden");
+  function toggleZoomPopover(){
+    $("zoomPopover").classList.toggle("hidden");
   }
 
   /* =========================================================
@@ -1731,6 +1768,10 @@
     $("btnTheme").addEventListener("click", toggleTheme);
     $("btnLang").addEventListener("click", toggleLanguage);
 
+    document.querySelectorAll(".panel-block[data-section] > .collapsible-header").forEach(header => {
+      header.addEventListener("click", () => toggleSectionCollapse(header.closest(".panel-block")));
+    });
+
     $("ruleMonth").addEventListener("change", e => {
       state.rules.month = e.target.value;
       const [y, m] = state.rules.month.split("-").map(Number);
@@ -1831,8 +1872,6 @@
     $("btnCancelShift").addEventListener("click", closeShiftModal);
 
     $("calendarGrid").addEventListener("click", e => {
-      const zoomBtn = e.target.closest(".cell-zoom-btn");
-      if (zoomBtn){ openZoomModal(zoomBtn.dataset.date); return; }
       const btn = e.target.closest(".chip-remove");
       if (btn) removeFromSlot(btn.dataset.date, btn.dataset.shift, btn.dataset.emp);
     });
@@ -1841,23 +1880,12 @@
         addToSlot(e.target.dataset.date, e.target.dataset.shift, e.target.value);
       }
     });
-
-    // 放大檢視 modal：內容區也能新增/移除員工，並用滑桿調整縮放比例
-    $("zoomContent").addEventListener("click", e => {
-      const btn = e.target.closest(".chip-remove");
-      if (btn) removeFromSlot(btn.dataset.date, btn.dataset.shift, btn.dataset.emp);
-    });
-    $("zoomContent").addEventListener("change", e => {
-      if (e.target.classList.contains("add-select")){
-        addToSlot(e.target.dataset.date, e.target.dataset.shift, e.target.value);
-      }
-    });
+    // 放大鏡：點下去原地顯示滑桿，直接縮放目前的日曆畫面，不開新視窗
+    $("btnZoomCalendar").addEventListener("click", toggleZoomPopover);
     $("zoomSlider").addEventListener("input", e => {
       zoomLevel = Number(e.target.value);
       applyZoomLevel();
     });
-    $("btnCloseZoom").addEventListener("click", closeZoomModal);
-    $("zoomModal").addEventListener("click", e => { if (e.target.id === "zoomModal") closeZoomModal(); });
 
     $("employeeModal").addEventListener("click", e => { if (e.target.id === "employeeModal") closeEmployeeModal(); });
     $("shiftModal").addEventListener("click", e => { if (e.target.id === "shiftModal") closeShiftModal(); });
@@ -1869,6 +1897,8 @@
   populateTimeSelects();
   bindEvents();
   applyTheme();
+  applyZoomLevel();
+  applyCollapsedState();
   applyLanguage(); // applyLanguage 內部會呼叫 renderAll()
 
 })();
