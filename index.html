@@ -160,20 +160,21 @@
     flex-shrink:0;
   }
 
-  .calendar-panel{ position:relative; padding-bottom:56px; }
-  .zoom-trigger-btn{
-    position:absolute; bottom:12px; right:12px;
-    width:42px; height:42px; padding:0; line-height:1; font-size:24px;
-    border-radius:50%; display:flex; align-items:center; justify-content:center;
-    box-shadow:0 1px 4px rgba(0,0,0,.2); z-index:5;
+  /* ====== 月曆獨立畫面：覆蓋整個瀏覽器視窗，格子自動填滿 ====== */
+  .calendar-view{
+    position:fixed; inset:0; z-index:80;
+    background: var(--color-bg);
+    display:flex; flex-direction:column;
+    padding:12px 16px;
+    gap:8px;
   }
-  .zoom-popover{
-    position:absolute; bottom:62px; right:12px; z-index:6;
-    display:flex; align-items:center; gap:8px;
-    background: var(--color-card); border:1px solid var(--color-border); border-radius:8px;
-    padding:8px 12px; font-size:13px; box-shadow:0 2px 10px rgba(0,0,0,.2);
+  .calendar-view-header{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; flex-wrap:wrap; flex-shrink:0;
   }
-  .zoom-popover input[type="range"]{ width:130px; }
+  .calendar-view-header h2{ margin:0; font-size:18px; }
+  .calendar-view-title{ display:flex; align-items:center; gap:12px; }
+  .calendar-view-actions{ display:flex; align-items:center; gap:8px; }
 
   .first-time-note{
     background: var(--color-note-bg);
@@ -196,20 +197,34 @@
     border-radius: var(--radius);
     padding:14px;
   }
-  .calendar-header{
-    display:flex; justify-content:space-between; align-items:center;
-    gap:10px; margin-bottom:8px; flex-wrap:wrap;
+  /* ====== 首頁：介紹 + 今日班表 + 功能按鈕 ====== */
+  .home-intro p{
+    margin:0; font-size:14px; color: var(--color-text-light); line-height:1.7;
   }
-  .calendar-header h2{ margin:0; }
-  .dashboard-cards{
+  .home-main{
     display:grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: minmax(280px, 380px) 1fr;
     gap:16px;
     align-items:start;
   }
-  @media (max-width: 1000px){
-    .dashboard-cards{ grid-template-columns: 1fr; }
+  @media (max-width: 900px){
+    .home-main{ grid-template-columns: 1fr; }
   }
+  .home-tiles{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap:12px;
+  }
+  .home-tile{
+    display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+    padding:20px 18px; text-align:left;
+    border:1px solid var(--color-border); border-radius: var(--radius);
+    background: var(--color-card);
+  }
+  .home-tile:hover{ background: var(--color-hover-bg); }
+  .tile-title{ font-size:15px; font-weight:700; }
+  .tile-sub{ font-size:12px; color: var(--color-text-light); }
+  .tile-sub.tile-sub-bad{ color: var(--color-danger); font-weight:700; }
   .today-info{ font-size:13px; color: var(--color-text-light); margin-bottom:8px; }
   .today-list{ display:flex; flex-direction:column; gap:4px; max-height:260px; overflow-y:auto; }
   .today-row{
@@ -248,6 +263,7 @@
   .drawer-close{ border:none; background:transparent; font-size:16px; padding:4px 8px; }
   .drawer-body{ padding:14px 16px; overflow-y:auto; flex:1; }
   .drawer-body .item-list{ max-height:none; }
+  .drawer-body .violation-list{ max-height:none; }
   .drawer-add-btn{ width:100%; margin-bottom:12px; }
   .system-actions{ display:flex; flex-wrap:wrap; gap:8px; padding:8px; }
 
@@ -290,12 +306,20 @@
   .preference-row strong{ flex-shrink:0; }
   .preference-row span{ color: var(--color-text-light); text-align:right; }
 
-  /* ====== 月曆 ====== */
-  .calendar-scroll{ overflow-x:auto; }
-  .calendar-weekdays, .calendar-grid{
+  /* ====== 月曆：格子自動填滿視窗寬高 ====== */
+  .calendar-weekdays{
     display:grid;
-    grid-template-columns: repeat(7, minmax(170px, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap:6px;
+    flex-shrink:0;
+  }
+  .calendar-grid{
+    display:grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap:6px;
+    flex:1;
+    min-height:0;
   }
   .calendar-weekdays div{
     text-align:center;
@@ -307,12 +331,13 @@
   .calendar-cell{
     border:1px solid var(--color-border);
     border-radius:6px;
-    min-height:180px;
+    min-height:0;
     padding:6px;
     background: var(--color-cell-bg);
     display:flex;
     flex-direction:column;
     gap:4px;
+    overflow-y:auto;
   }
   .calendar-cell.empty{ background:transparent; border:none; }
   .cell-date{ font-weight:600; font-size:13px; }
@@ -384,10 +409,6 @@
   .checkbox-grid label{ margin:0; display:flex; align-items:center; gap:4px; width:auto; font-weight:400; }
   .checkbox-grid input{ width:auto; }
 
-  /* ====== 整個日曆原地縮放（不開新視窗） ====== */
-  .zoom-percent{ min-width:38px; text-align:right; color: var(--color-text-light); }
-  .calendar-scale-wrapper{ transform-origin: top left; width:max-content; transition: transform .1s ease; }
-
   /* ====== Toast ====== */
   .toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
@@ -438,66 +459,109 @@
 
   <main class="app-container">
 
-    <!-- 月曆（Dashboard 主體） -->
-    <div class="panel-block calendar-panel">
-      <div class="calendar-header">
-        <h2><span id="lblSectionCalendar">班表預覽</span> - <span id="calendarMonthLabel"></span></h2>
-        <button id="btnGenerate" class="primary">自動排班</button>
-      </div>
-      <div class="calendar-scroll">
-        <div id="calendarScaleWrapper" class="calendar-scale-wrapper">
-          <div id="calendarWeekdays" class="calendar-weekdays"></div>
-          <div id="calendarGrid" class="calendar-grid"></div>
-        </div>
-      </div>
-      <div id="zoomPopover" class="zoom-popover hidden">
-        <span id="lblZoomLevel">縮放</span>
-        <input type="range" id="zoomSlider" min="80" max="250" step="10" value="100">
-        <span id="zoomPercentLabel" class="zoom-percent">100%</span>
-      </div>
-      <button type="button" id="btnZoomCalendar" class="zoom-trigger-btn" title="">⊕</button>
+    <!-- 系統介紹 -->
+    <div class="panel-block home-intro">
+      <h2 id="lblIntroTitle">關於本系統</h2>
+      <p id="introText"></p>
     </div>
 
-    <!-- 今日班表 / 違規摘要 / 快速調班 -->
-    <div class="dashboard-cards">
+    <div class="home-main">
 
+      <!-- 今日班表 -->
       <div class="panel-block">
         <h2 id="lblTodayTitle">今日班表</h2>
         <div id="todayInfo" class="today-info"></div>
         <div id="todayList" class="today-list"></div>
       </div>
 
-      <div class="panel-block">
-        <h2 id="lblSectionRuleStatus">違規摘要</h2>
-        <div id="statusSummary"></div>
-        <ul id="violationList" class="violation-list"></ul>
-        <button id="btnToggleViolations" type="button" class="link-btn hidden"></button>
-      </div>
-
-      <div class="panel-block">
-        <h2 id="lblQuickSwapTitle">快速調班</h2>
-        <div class="quick-swap-form">
-          <label><span id="lblSwapDate">日期</span>
-            <input type="date" id="swapDate">
-          </label>
-          <label><span id="lblSwapShift">班別</span>
-            <select id="swapShift"></select>
-          </label>
-          <label><span id="lblSwapFrom">原員工</span>
-            <select id="swapFrom"></select>
-          </label>
-          <label><span id="lblSwapTo">換成</span>
-            <select id="swapTo"></select>
-          </label>
-          <button id="btnDoSwap" class="primary">執行調班</button>
-        </div>
+      <!-- 功能入口按鈕 -->
+      <div class="home-tiles">
+        <button type="button" class="home-tile" id="tileCalendar">
+          <span class="tile-title" id="tileCalendarTitle">班表月曆</span>
+          <span class="tile-sub" id="tileCalendarSub"></span>
+        </button>
+        <button type="button" class="home-tile" id="tileViolations">
+          <span class="tile-title" id="tileViolationsTitle">違規摘要</span>
+          <span class="tile-sub" id="tileViolationsSub"></span>
+        </button>
+        <button type="button" class="home-tile" id="tileSwap">
+          <span class="tile-title" id="tileSwapTitle">快速調班</span>
+        </button>
+        <button type="button" class="home-tile" id="tileEmployees">
+          <span class="tile-title" id="tileEmployeesTitle">員工管理</span>
+          <span class="tile-sub" id="tileEmployeesSub"></span>
+        </button>
+        <button type="button" class="home-tile" id="tileShifts">
+          <span class="tile-title" id="tileShiftsTitle">班別管理</span>
+          <span class="tile-sub" id="tileShiftsSub"></span>
+        </button>
+        <button type="button" class="home-tile" id="tileRules">
+          <span class="tile-title" id="tileRulesTitle">規則設定</span>
+        </button>
+        <button type="button" class="home-tile" id="tileSystem">
+          <span class="tile-title" id="tileSystemTitle">系統設定</span>
+        </button>
       </div>
 
     </div>
   </main>
 
-  <!-- Drawer：員工管理 -->
+  <!-- 月曆獨立畫面：覆蓋整個瀏覽器視窗 -->
+  <div id="calendarView" class="calendar-view hidden">
+    <div class="calendar-view-header">
+      <div class="calendar-view-title">
+        <button type="button" id="btnCloseCalendar">返回</button>
+        <h2><span id="lblSectionCalendar">班表預覽</span> - <span id="calendarMonthLabel"></span></h2>
+      </div>
+      <div class="calendar-view-actions">
+        <button type="button" id="btnCalPrevMonth">‹</button>
+        <button type="button" id="btnCalNextMonth">›</button>
+        <button id="btnGenerate" class="primary">自動排班</button>
+      </div>
+    </div>
+    <div id="calendarWeekdays" class="calendar-weekdays"></div>
+    <div id="calendarGrid" class="calendar-grid"></div>
+  </div>
+
+  <!-- Drawer：違規摘要 -->
   <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+
+  <aside id="drawerViolations" class="drawer">
+    <div class="drawer-header">
+      <h3 id="lblSectionRuleStatus">違規摘要</h3>
+      <button type="button" class="drawer-close" data-close>✕</button>
+    </div>
+    <div class="drawer-body">
+      <div id="statusSummary"></div>
+      <ul id="violationList" class="violation-list"></ul>
+      <button id="btnToggleViolations" type="button" class="link-btn hidden"></button>
+    </div>
+  </aside>
+
+  <!-- Drawer：快速調班 -->
+  <aside id="drawerSwap" class="drawer">
+    <div class="drawer-header">
+      <h3 id="lblQuickSwapTitle">快速調班</h3>
+      <button type="button" class="drawer-close" data-close>✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="quick-swap-form">
+        <label><span id="lblSwapDate">日期</span>
+          <input type="date" id="swapDate">
+        </label>
+        <label><span id="lblSwapShift">班別</span>
+          <select id="swapShift"></select>
+        </label>
+        <label><span id="lblSwapFrom">原員工</span>
+          <select id="swapFrom"></select>
+        </label>
+        <label><span id="lblSwapTo">換成</span>
+          <select id="swapTo"></select>
+        </label>
+        <button id="btnDoSwap" class="primary">執行調班</button>
+      </div>
+    </div>
+  </aside>
 
   <aside id="drawerEmployees" class="drawer">
     <div class="drawer-header">
@@ -819,6 +883,11 @@
       lblSectionShifts: "班別管理",
       lblSectionRules: "規則設定",
       lblSectionSystem: "系統設定",
+      lblIntroTitle: "關於本系統",
+      introText: "輕量的自動排班工具：先建立班別與員工，設定排班規則後一鍵產生整月班表，並自動檢查是否符合勞動基準法（每日 8 小時、每週 40 小時、每七日應有二日休息）。支援手動調班、違規提醒、多月份管理與匯入匯出，所有資料只儲存在你的瀏覽器本機。",
+      btnBack: "返回",
+      tileEmployeesCount: n => `目前 ${n} 位員工`,
+      tileShiftsCount: n => `目前 ${n} 個班別`,
       searchPlaceholder: "搜尋員工",
       userDefaultName: "使用者",
       lblUserName: "使用者名稱",
@@ -934,9 +1003,7 @@
       toastOffDaysFloored: min => `已自動調整為勞基法最低要求 ${min} 天（一例一休）`,
       lblPreferenceOverview: "員工偏好班別總覽",
       noPreferenceSet: "尚無員工設定偏好班別",
-      firstTimeNote: "※ 若是初次排班，請先在「設定 → 班別管理」新增班別，再到「員工管理」設定員工的可上班別與偏好班別。",
-      lblZoomLevel: "縮放",
-      zoomTooltip: "放大檢視整月班表"
+      firstTimeNote: "※ 若是初次排班，請先在「班別管理」新增班別，再到「員工管理」設定員工的可上班別與偏好班別。"
     },
     en: {
       appTitle: "Auto Scheduling System",
@@ -949,6 +1016,11 @@
       lblSectionShifts: "Shifts",
       lblSectionRules: "Rules",
       lblSectionSystem: "System Settings",
+      lblIntroTitle: "About This System",
+      introText: "A lightweight auto-scheduling tool: create shifts and employees, set the scheduling rules, then generate a full month's schedule in one click — with automatic Labor Standards Act checks (8 hours/day, 40 hours/week, 2 rest days every 7 days). Supports manual adjustments, violation alerts, multi-month management, and import/export. All data stays in your browser.",
+      btnBack: "Back",
+      tileEmployeesCount: n => `${n} employee(s)`,
+      tileShiftsCount: n => `${n} shift(s)`,
       searchPlaceholder: "Search employee",
       userDefaultName: "User",
       lblUserName: "User Name",
@@ -1064,9 +1136,7 @@
       toastOffDaysFloored: min => `Auto-adjusted to the statutory minimum of ${min} day(s)`,
       lblPreferenceOverview: "Employee Shift Preference Overview",
       noPreferenceSet: "No employees have set shift preferences yet",
-      firstTimeNote: "※ First time scheduling? Open Settings → Shifts to add shifts first, then set each employee's allowed/preferred shifts in Employees.",
-      lblZoomLevel: "Zoom",
-      zoomTooltip: "Enlarge the whole month view"
+      firstTimeNote: "※ First time scheduling? Add shifts in Shifts first, then set each employee's allowed/preferred shifts in Employees."
     }
   };
 
@@ -1136,6 +1206,17 @@
     $("lblRuleFairness").textContent = t("lblRuleFairness");
     $("lblRulePreference").textContent = t("lblRulePreference");
 
+    $("lblIntroTitle").textContent = t("lblIntroTitle");
+    $("introText").textContent = t("introText");
+    $("btnCloseCalendar").textContent = t("btnBack");
+    $("tileCalendarTitle").textContent = t("lblSectionCalendar");
+    $("tileViolationsTitle").textContent = t("lblSectionRuleStatus");
+    $("tileSwapTitle").textContent = t("lblQuickSwapTitle");
+    $("tileEmployeesTitle").textContent = t("lblSectionEmployees");
+    $("tileShiftsTitle").textContent = t("lblSectionShifts");
+    $("tileRulesTitle").textContent = t("lblSectionRules");
+    $("tileSystemTitle").textContent = t("lblSectionSystem");
+
     $("lblSectionCalendar").textContent = t("lblSectionCalendar");
     $("lblSectionRuleStatus").textContent = t("lblSectionRuleStatus");
     $("lblTodayTitle").textContent = t("lblTodayTitle");
@@ -1176,9 +1257,6 @@
     $("lblShiftIsNight").textContent = t("lblShiftIsNight");
     $("btnCancelShift").textContent = t("btnCancel");
     $("btnSaveShift").textContent = t("btnSaveModal");
-
-    $("lblZoomLevel").textContent = t("lblZoomLevel");
-    $("btnZoomCalendar").title = t("zoomTooltip");
 
     renderUserInfo();
     renderAll();
@@ -1667,8 +1745,6 @@
     }).join("");
   }
 
-  // 目前日曆整體縮放比例（%），點放大鏡後可用滑桿調整
-  let zoomLevel = 100;
   // 最近一次計算出的違規標記
   let lastRedSlot = new Set();
   let lastRedChip = new Set();
@@ -1752,6 +1828,14 @@
     } else {
       summaryEl.innerHTML = `<div class="status-bad">${escapeHtml(t("statusBad", totalCount))}</div>`;
     }
+
+    // 首頁功能按鈕的即時摘要文字
+    $("tileCalendarSub").textContent = t("monthLabel", y, m);
+    const vSub = $("tileViolationsSub");
+    vSub.textContent = totalCount === 0 ? t("statusOk") : t("statusBad", totalCount);
+    vSub.classList.toggle("tile-sub-bad", totalCount > 0);
+    $("tileEmployeesSub").textContent = t("tileEmployeesCount", state.employees.length);
+    $("tileShiftsSub").textContent = t("tileShiftsCount", state.shifts.length);
 
     // 違規摘要卡片：預設只列前幾條，可展開全部
     const shown = violationsExpanded ? listViolations : listViolations.slice(0, VIOLATION_PREVIEW_COUNT);
@@ -1868,15 +1952,14 @@
   }
 
   /* =========================================================
-   * 整個日曆原地縮放（不開新視窗，點放大鏡顯示滑桿，直接縮放目前畫面）
+   * 月曆獨立畫面開關（覆蓋整個瀏覽器視窗，自動適應大小）
    * ========================================================= */
-  function applyZoomLevel(){
-    $("zoomPercentLabel").textContent = `${zoomLevel}%`;
-    $("calendarScaleWrapper").style.transform = `scale(${zoomLevel / 100})`;
+  function openCalendarView(){
+    $("calendarView").classList.remove("hidden");
   }
 
-  function toggleZoomPopover(){
-    $("zoomPopover").classList.toggle("hidden");
+  function closeCalendarView(){
+    $("calendarView").classList.add("hidden");
   }
 
   /* =========================================================
@@ -2279,7 +2362,25 @@
       renderUserInfo();
     });
 
-    // Dashboard
+    // 首頁功能入口
+    $("tileCalendar").addEventListener("click", openCalendarView);
+    $("tileViolations").addEventListener("click", () => openDrawer("drawerViolations"));
+    $("tileSwap").addEventListener("click", () => openDrawer("drawerSwap"));
+    $("tileEmployees").addEventListener("click", () => openDrawer("drawerEmployees"));
+    $("tileShifts").addEventListener("click", () => openDrawer("drawerShifts"));
+    $("tileRules").addEventListener("click", () => openDrawer("drawerRules"));
+    $("tileSystem").addEventListener("click", () => openDrawer("drawerSystem"));
+
+    // 月曆獨立畫面
+    $("btnCloseCalendar").addEventListener("click", closeCalendarView);
+    $("btnCalPrevMonth").addEventListener("click", () => shiftViewMonth(-1));
+    $("btnCalNextMonth").addEventListener("click", () => shiftViewMonth(1));
+    document.addEventListener("keydown", e => {
+      if (e.key !== "Escape") return;
+      if (openDrawerEl) closeDrawer();
+      else closeCalendarView();
+    });
+
     $("btnGenerate").addEventListener("click", generateSchedule);
     $("btnToggleViolations").addEventListener("click", () => {
       violationsExpanded = !violationsExpanded;
@@ -2401,13 +2502,6 @@
         addToSlot(e.target.dataset.date, e.target.dataset.shift, e.target.value);
       }
     });
-    // 放大鏡：點下去原地顯示滑桿，直接縮放目前的日曆畫面，不開新視窗
-    $("btnZoomCalendar").addEventListener("click", toggleZoomPopover);
-    $("zoomSlider").addEventListener("input", e => {
-      zoomLevel = Number(e.target.value);
-      applyZoomLevel();
-    });
-
     $("employeeModal").addEventListener("click", e => { if (e.target.id === "employeeModal") closeEmployeeModal(); });
     $("shiftModal").addEventListener("click", e => { if (e.target.id === "shiftModal") closeShiftModal(); });
   }
@@ -2418,7 +2512,6 @@
   populateTimeSelects();
   bindEvents();
   applyTheme();
-  applyZoomLevel();
   applyLanguage(); // applyLanguage 內部會呼叫 renderAll()
 
 })();
