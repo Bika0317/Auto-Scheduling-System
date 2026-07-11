@@ -176,6 +176,35 @@
   .calendar-view-title{ display:flex; align-items:center; gap:12px; }
   .calendar-view-actions{ display:flex; align-items:center; gap:8px; }
 
+  /* 班表下方：違規摘要 + 快速調班 */
+  .calendar-footer{
+    flex-shrink:0;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+    max-height:30vh;
+    min-height:0;
+  }
+  .calendar-footer-panel{
+    background: var(--color-card);
+    border:1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding:10px 14px;
+    overflow-y:auto;
+    min-height:0;
+  }
+  .calendar-footer-panel h3{ margin:0 0 8px; font-size:14px; }
+  .calendar-footer .violation-list{ max-height:none; }
+  .calendar-footer .quick-swap-form{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+  }
+  .calendar-footer .quick-swap-form label{
+    flex:1 1 130px; margin:0;
+  }
+  @media (max-width:700px){
+    .calendar-footer{ grid-template-columns:1fr; }
+  }
+
   .first-time-note{
     background: var(--color-note-bg);
     color: var(--color-note-text);
@@ -263,7 +292,6 @@
   .drawer-close{ border:none; background:transparent; font-size:16px; padding:4px 8px; }
   .drawer-body{ padding:14px 16px; overflow-y:auto; flex:1; }
   .drawer-body .item-list{ max-height:none; }
-  .drawer-body .violation-list{ max-height:none; }
   .drawer-add-btn{ width:100%; margin-bottom:12px; }
   .system-actions{ display:flex; flex-wrap:wrap; gap:8px; padding:8px; }
 
@@ -480,13 +508,6 @@
           <span class="tile-title" id="tileCalendarTitle">班表月曆</span>
           <span class="tile-sub" id="tileCalendarSub"></span>
         </button>
-        <button type="button" class="home-tile" id="tileViolations">
-          <span class="tile-title" id="tileViolationsTitle">違規摘要</span>
-          <span class="tile-sub" id="tileViolationsSub"></span>
-        </button>
-        <button type="button" class="home-tile" id="tileSwap">
-          <span class="tile-title" id="tileSwapTitle">快速調班</span>
-        </button>
         <button type="button" class="home-tile" id="tileEmployees">
           <span class="tile-title" id="tileEmployeesTitle">員工管理</span>
           <span class="tile-sub" id="tileEmployeesSub"></span>
@@ -521,47 +542,37 @@
     </div>
     <div id="calendarWeekdays" class="calendar-weekdays"></div>
     <div id="calendarGrid" class="calendar-grid"></div>
-  </div>
 
-  <!-- Drawer：違規摘要 -->
-  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
-
-  <aside id="drawerViolations" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblSectionRuleStatus">違規摘要</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
-      <div id="statusSummary"></div>
-      <ul id="violationList" class="violation-list"></ul>
-      <button id="btnToggleViolations" type="button" class="link-btn hidden"></button>
-    </div>
-  </aside>
-
-  <!-- Drawer：快速調班 -->
-  <aside id="drawerSwap" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblQuickSwapTitle">快速調班</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
-      <div class="quick-swap-form">
-        <label><span id="lblSwapDate">日期</span>
-          <input type="date" id="swapDate">
-        </label>
-        <label><span id="lblSwapShift">班別</span>
-          <select id="swapShift"></select>
-        </label>
-        <label><span id="lblSwapFrom">原員工</span>
-          <select id="swapFrom"></select>
-        </label>
-        <label><span id="lblSwapTo">換成</span>
-          <select id="swapTo"></select>
-        </label>
-        <button id="btnDoSwap" class="primary">執行調班</button>
+    <!-- 班表下方：違規摘要 + 快速調班 -->
+    <div class="calendar-footer">
+      <div class="calendar-footer-panel">
+        <h3 id="lblSectionRuleStatus">違規摘要</h3>
+        <div id="statusSummary"></div>
+        <ul id="violationList" class="violation-list"></ul>
+        <button id="btnToggleViolations" type="button" class="link-btn hidden"></button>
+      </div>
+      <div class="calendar-footer-panel">
+        <h3 id="lblQuickSwapTitle">快速調班</h3>
+        <div class="quick-swap-form">
+          <label><span id="lblSwapDate">日期</span>
+            <input type="date" id="swapDate">
+          </label>
+          <label><span id="lblSwapShift">班別</span>
+            <select id="swapShift"></select>
+          </label>
+          <label><span id="lblSwapFrom">原員工</span>
+            <select id="swapFrom"></select>
+          </label>
+          <label><span id="lblSwapTo">換成</span>
+            <select id="swapTo"></select>
+          </label>
+          <button id="btnDoSwap" class="primary">執行調班</button>
+        </div>
       </div>
     </div>
-  </aside>
+  </div>
+
+  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
 
   <aside id="drawerEmployees" class="drawer">
     <div class="drawer-header">
@@ -1210,8 +1221,6 @@
     $("introText").textContent = t("introText");
     $("btnCloseCalendar").textContent = t("btnBack");
     $("tileCalendarTitle").textContent = t("lblSectionCalendar");
-    $("tileViolationsTitle").textContent = t("lblSectionRuleStatus");
-    $("tileSwapTitle").textContent = t("lblQuickSwapTitle");
     $("tileEmployeesTitle").textContent = t("lblSectionEmployees");
     $("tileShiftsTitle").textContent = t("lblSectionShifts");
     $("tileRulesTitle").textContent = t("lblSectionRules");
@@ -1831,9 +1840,6 @@
 
     // 首頁功能按鈕的即時摘要文字
     $("tileCalendarSub").textContent = t("monthLabel", y, m);
-    const vSub = $("tileViolationsSub");
-    vSub.textContent = totalCount === 0 ? t("statusOk") : t("statusBad", totalCount);
-    vSub.classList.toggle("tile-sub-bad", totalCount > 0);
     $("tileEmployeesSub").textContent = t("tileEmployeesCount", state.employees.length);
     $("tileShiftsSub").textContent = t("tileShiftsCount", state.shifts.length);
 
@@ -2364,8 +2370,6 @@
 
     // 首頁功能入口
     $("tileCalendar").addEventListener("click", openCalendarView);
-    $("tileViolations").addEventListener("click", () => openDrawer("drawerViolations"));
-    $("tileSwap").addEventListener("click", () => openDrawer("drawerSwap"));
     $("tileEmployees").addEventListener("click", () => openDrawer("drawerEmployees"));
     $("tileShifts").addEventListener("click", () => openDrawer("drawerShifts"));
     $("tileRules").addEventListener("click", () => openDrawer("drawerRules"));
