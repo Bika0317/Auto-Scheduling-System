@@ -407,6 +407,7 @@
   /* ====== 規則符合狀態 ====== */
   .status-ok{ background: var(--color-success-bg); color: var(--color-success); padding:8px; border-radius:6px; font-weight:600; }
   .status-bad{ background: var(--color-danger-bg); color: var(--color-danger); padding:8px; border-radius:6px; font-weight:600; }
+  .status-neutral{ background: var(--color-hover-bg); color: var(--color-text-light); padding:8px; border-radius:6px; font-weight:600; }
   .violation-list{ max-height:220px; overflow-y:auto; margin:10px 0 0; padding-left:18px; font-size:13px; }
   .violation-list li{ margin-bottom:4px; }
   .violation-list li.violation-red{ color: var(--color-danger); font-weight:600; }
@@ -932,6 +933,7 @@
       addEmployeeOption: "+ 新增員工",
       statusOk: "目前排班符合所有規則",
       statusBad: n => `發現 ${n} 項規則問題`,
+      statusUnscheduled: "此月尚未排班",
       canNightYes: "可夜班",
       canNightNo: "不可夜班",
       labelAllowed: "可上班別",
@@ -1065,6 +1067,7 @@
       addEmployeeOption: "+ Add employee",
       statusOk: "Current schedule complies with all rules",
       statusBad: n => `Found ${n} rule issue(s)`,
+      statusUnscheduled: "This month has no schedule yet",
       canNightYes: "Night OK",
       canNightNo: "No Night",
       labelAllowed: "Allowed Shifts",
@@ -1465,6 +1468,16 @@
     // 只統計「目前檢視月份」的日期，不累加其他月份的歷史資料
     const dates = getMonthDates();
 
+    // 整月完全沒有任何排班（只有切換月份時建立的空殼）→ 視為「尚未排班」，
+    // 不把每個空格子都算成人數不足的違規
+    const unscheduled = dates.every(date => {
+      const day = schedule[date];
+      return !day || Object.keys(day).every(sid => day[sid].length === 0);
+    });
+    if (unscheduled){
+      return { listViolations, totalCount, redSlot, redChip, unscheduled };
+    }
+
     const worksOn = (empId, date) => {
       const day = schedule[date];
       if (!day) return false;
@@ -1634,7 +1647,7 @@
       });
     }
 
-    return { listViolations, totalCount, redSlot, redChip };
+    return { listViolations, totalCount, redSlot, redChip, unscheduled: false };
   }
 
   /* =========================================================
@@ -1825,14 +1838,16 @@
     const [y, m] = state.rules.month.split("-").map(Number);
     $("calendarMonthLabel").textContent = t("monthLabel", y, m);
 
-    const { listViolations, totalCount, redSlot, redChip } = computeViolations();
+    const { listViolations, totalCount, redSlot, redChip, unscheduled } = computeViolations();
     lastRedSlot = redSlot;
     lastRedChip = redChip;
 
     $("calendarGrid").innerHTML = buildCalendarBodyHtml();
 
     const summaryEl = $("statusSummary");
-    if (totalCount === 0){
+    if (unscheduled){
+      summaryEl.innerHTML = `<div class="status-neutral">${escapeHtml(t("statusUnscheduled"))}</div>`;
+    } else if (totalCount === 0){
       summaryEl.innerHTML = `<div class="status-ok">${escapeHtml(t("statusOk"))}</div>`;
     } else {
       summaryEl.innerHTML = `<div class="status-bad">${escapeHtml(t("statusBad", totalCount))}</div>`;
