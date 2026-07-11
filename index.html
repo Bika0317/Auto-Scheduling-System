@@ -652,7 +652,7 @@
       <fieldset>
         <legend id="legendExport">匯出</legend>
         <div class="system-actions">
-          <button id="btnExportFull" type="button">整包資料</button>
+          <button id="btnExportFull" type="button">完整備份</button>
           <button id="btnExportMonth" type="button">目前月份</button>
         </div>
       </fieldset>
@@ -983,11 +983,11 @@
       monthLabel: (y,m) => `${y} 年 ${m} 月`,
       unknownEmployee: "未知員工",
       legendExport: "匯出",
-      btnExportFull: "整包資料",
+      btnExportFull: "完整備份",
       btnExportMonth: "目前月份",
       legendImport: "匯入",
       btnImportFile: "選擇檔案匯入",
-      importHint: "匯入時會自動偵測「整包資料」或「單月份」格式；單月份匯入只會覆蓋該月班表。",
+      importHint: "匯入時會自動偵測「完整備份」或「單月份」格式；單月份匯入只會覆蓋該月班表。",
       toastMonthImported: m => `已匯入 ${m} 的單月班表`,
       legendCopyMonth: "複製月份班表",
       lblCopyFrom: "來源月份",
@@ -1117,11 +1117,11 @@
       monthLabel: (y,m) => `${y}-${pad(m)}`,
       unknownEmployee: "Unknown employee",
       legendExport: "Export",
-      btnExportFull: "Full data",
+      btnExportFull: "Full backup",
       btnExportMonth: "Current month",
       legendImport: "Import",
       btnImportFile: "Choose file to import",
-      importHint: "Format (full data vs. single month) is detected automatically; a single-month import only overwrites that month's schedule.",
+      importHint: "Format (full backup vs. single month) is detected automatically; a single-month import only overwrites that month's schedule.",
       toastMonthImported: m => `Imported single-month schedule for ${m}`,
       legendCopyMonth: "Copy Month Schedule",
       lblCopyFrom: "Source month",
@@ -2202,7 +2202,7 @@
     downloadJSON(payload, `排班資料_${month}.json`);
   }
 
-  // 匯入：自動偵測「整包資料」或「單月份」格式
+  // 匯入：自動偵測「完整備份」或「單月份」格式
   function importJSON(file){
     const reader = new FileReader();
     reader.onload = evt => {
