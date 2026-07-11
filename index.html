@@ -356,6 +356,14 @@
     font-size:13px;
     padding:4px 0;
   }
+  .calendar-cell.holiday-cell{ background: var(--color-hover-bg); }
+  .holiday-badge{
+    font-size:10px; font-weight:700;
+    color: var(--color-danger);
+    border:1px solid var(--color-danger);
+    border-radius:8px; padding:0 5px; margin-left:6px;
+    vertical-align:middle;
+  }
   .calendar-cell{
     border:1px solid var(--color-border);
     border-radius:6px;
@@ -632,6 +640,15 @@
         <label class="checkbox-row">
           <input type="checkbox" id="rulePreference"><span id="lblRulePreference">盡量滿足員工偏好</span>
         </label>
+        <fieldset>
+          <legend id="legendHolidays">公休日</legend>
+          <p id="holidayHint" class="legal-disclaimer" style="margin:4px 0 8px;"></p>
+          <div class="date-add-row">
+            <input type="date" id="ruleHolidayInput">
+            <button type="button" id="btnAddHoliday">新增</button>
+          </div>
+          <div id="ruleHolidayList" class="tag-list"></div>
+        </fieldset>
         <div id="lblPreferenceOverview" class="sub-label">員工偏好班別總覽</div>
         <div id="preferenceOverview" class="preference-overview"></div>
       </form>
@@ -1005,6 +1022,10 @@
       v_offDaysLegal: (en, off, min) => `${en} 本月休假天數(${off})低於勞基法最低要求(${min})，違反「一例一休」規定`,
       v_offDaysTarget: (en, off, target) => `${en} 本月休假天數(${off})未達規則設定的月休天數目標(${target})`,
       v_preferenceNotMet: en => `${en} 本月排班完全未安排到偏好班別`,
+      v_holidayAssigned: (d, en) => `${d} 為公休日，但仍排了 ${en}`,
+      legendHolidays: "公休日",
+      holidayHint: "公休日整天不排班：自動排班會跳過，該日也不列入人數不足檢查。",
+      holidayBadge: "公休",
       legalDisclaimer: "標有 ⚖ 的欄位已依勞動基準法強制規定限制可調整範圍，無法設定為違法數值。",
       legalHintMaxDaily: "⚖ 依勞基法第30條，正常工作時間每日不得超過 8 小時",
       legalHintMaxConsecutive: "⚖ 依勞基法第36條，每七日應有二日休息（一例假、一休息日），最多連續上班 5 天",
@@ -1139,6 +1160,10 @@
       v_offDaysLegal: (en, off, min) => `${en} has only ${off} day(s) off this month, below the statutory minimum (${min}) under the "mandatory + flexible rest day" rule`,
       v_offDaysTarget: (en, off, target) => `${en} has ${off} day(s) off this month, short of the configured target (${target})`,
       v_preferenceNotMet: en => `${en} was never scheduled on a preferred shift this month`,
+      v_holidayAssigned: (d, en) => `${d} is a business holiday but ${en} is still scheduled`,
+      legendHolidays: "Business holidays",
+      holidayHint: "No one is scheduled on holidays: auto-scheduling skips them and they are excluded from understaffing checks.",
+      holidayBadge: "Closed",
       legalDisclaimer: "Fields marked ⚖ are constrained by Taiwan's Labor Standards Act and cannot be set to illegal values.",
       legalHintMaxDaily: "⚖ Per Article 30: regular working hours must not exceed 8 hours/day",
       legalHintMaxConsecutive: "⚖ Per Article 36: 2 rest days every 7 days (one mandatory day off + one rest day), so max 5 consecutive work days",
@@ -1219,6 +1244,9 @@
     $("lblRuleMaxWeeklyHours").textContent = t("lblRuleMaxWeeklyHours");
     $("lblRuleFairness").textContent = t("lblRuleFairness");
     $("lblRulePreference").textContent = t("lblRulePreference");
+    $("legendHolidays").textContent = t("legendHolidays");
+    $("holidayHint").textContent = t("holidayHint");
+    $("btnAddHoliday").textContent = t("btnAddDate");
 
     $("lblIntroTitle").textContent = t("lblIntroTitle");
     $("introText").textContent = t("introText");
@@ -1291,7 +1319,8 @@
         maxDailyHours: 8,
         maxWeeklyHours: 40,
         fairness: true,
-        preference: true
+        preference: true,
+        holidays: [] // 公休日（"YYYY-MM-DD"），當天不排班
       },
       schedule: {}
     };
@@ -1300,10 +1329,12 @@
   function mergeWithDefaults(parsed){
     const def = defaultState();
     parsed = parsed || {};
+    const rules = Object.assign({}, def.rules, parsed.rules || {});
+    if (!Array.isArray(rules.holidays)) rules.holidays = [];
     return {
       employees: Array.isArray(parsed.employees) ? parsed.employees : def.employees,
       shifts: Array.isArray(parsed.shifts) ? parsed.shifts : def.shifts,
-      rules: Object.assign({}, def.rules, parsed.rules || {}),
+      rules,
       schedule: (parsed.schedule && typeof parsed.schedule === "object") ? parsed.schedule : def.schedule
     };
   }
@@ -1378,6 +1409,15 @@
       const weekKey = getWeekKey(dateStr);
       newSchedule[dateStr] = {};
       shifts.forEach(shift => { newSchedule[dateStr][shift.id] = []; });
+
+      // 公休日整天不排班，全員休息（連續上班數歸零、夜班後休息條件也解除）
+      if (rules.holidays.includes(dateStr)){
+        employees.forEach(emp => {
+          consecutiveStreak[emp.id] = 0;
+          workedNightYesterday[emp.id] = false;
+        });
+        continue;
+      }
 
       const workedToday = new Set();
 
@@ -1487,15 +1527,25 @@
     dates.forEach(date => {
       const daySchedule = schedule[date];
       const workedShiftsOfEmp = {};
+      const isHoliday = rules.holidays.includes(date);
 
       Object.keys(daySchedule).forEach(shiftId => {
         const shift = shiftMap[shiftId];
         if (!shift) return;
         const assigned = daySchedule[shiftId];
 
-        if (assigned.length < shift.requiredCount){
+        // 公休日不需人力，不算人數不足；反之若仍排了人則提醒
+        if (!isHoliday && assigned.length < shift.requiredCount){
           redSlot.add(`${date}_${shiftId}`);
           totalCount++;
+        }
+        if (isHoliday){
+          assigned.forEach(empId => {
+            const emp = empMap[empId];
+            listViolations.push({ level: "yellow", message: t("v_holidayAssigned", date, emp ? emp.name : t("unknownEmployee")) });
+            redChip.add(`${date}_${shiftId}_${empId}`);
+            totalCount++;
+          });
         }
         if (shiftHours(shift) > rules.maxDailyHours){
           redSlot.add(`${date}_${shiftId}`);
@@ -1682,8 +1732,16 @@
     $("legalHintMaxDaily").textContent = t("legalHintMaxDaily");
     $("legalHintMaxWeekly").textContent = t("legalHintMaxWeekly");
 
+    renderHolidayTags();
+
     $("lblPreferenceOverview").textContent = t("lblPreferenceOverview");
     renderPreferenceOverview();
+  }
+
+  function renderHolidayTags(){
+    $("ruleHolidayList").innerHTML = state.rules.holidays.map(d =>
+      `<span class="tag">${escapeHtml(d)}<button type="button" data-date="${d}">×</button></span>`
+    ).join("");
   }
 
   // 員工偏好班別總覽：每當員工資料新增/編輯/刪除，規則設定區會自動同步顯示最新偏好
@@ -1824,8 +1882,9 @@
     }
     for (let day = 1; day <= numDays; day++){
       const dateStr = formatDate(y, m, day);
-      html += `<div class="calendar-cell">
-        <div class="cell-date">${day}</div>
+      const isHoliday = state.rules.holidays.includes(dateStr);
+      html += `<div class="calendar-cell${isHoliday ? " holiday-cell" : ""}">
+        <div class="cell-date">${day}${isHoliday ? `<span class="holiday-badge">${escapeHtml(t("holidayBadge"))}</span>` : ""}</div>
         <div class="cell-shifts">${buildDayShiftsHtml(dateStr)}</div>
       </div>`;
     }
@@ -2476,6 +2535,28 @@
     });
     $("ruleFairness").addEventListener("change", e => { state.rules.fairness = e.target.checked; saveState(); });
     $("rulePreference").addEventListener("change", e => { state.rules.preference = e.target.checked; saveState(); });
+
+    // 公休日：新增 / 移除
+    $("btnAddHoliday").addEventListener("click", () => {
+      const val = $("ruleHolidayInput").value;
+      if (!val) return;
+      if (!state.rules.holidays.includes(val)){
+        state.rules.holidays.push(val);
+        state.rules.holidays.sort();
+        saveState();
+        renderHolidayTags();
+        renderCalendar();
+      }
+      $("ruleHolidayInput").value = "";
+    });
+    $("ruleHolidayList").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-date]");
+      if (!btn) return;
+      state.rules.holidays = state.rules.holidays.filter(d => d !== btn.dataset.date);
+      saveState();
+      renderHolidayTags();
+      renderCalendar();
+    });
 
     $("employeeList").addEventListener("click", e => {
       const btn = e.target.closest("button");
