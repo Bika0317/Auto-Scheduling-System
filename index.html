@@ -648,6 +648,8 @@
             <button type="button" id="btnAddHoliday">新增</button>
           </div>
           <div id="ruleHolidayList" class="tag-list"></div>
+          <div id="lblWeeklyHolidays" class="sub-label">每週固定公休</div>
+          <div id="weeklyHolidayGrid" class="checkbox-grid"></div>
         </fieldset>
         <div id="lblPreferenceOverview" class="sub-label">員工偏好班別總覽</div>
         <div id="preferenceOverview" class="preference-overview"></div>
@@ -827,6 +829,14 @@
     const d = parseDateStr(dateStr);
     d.setDate(d.getDate() + n);
     return formatDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  }
+
+  // 判斷某日是否為公休：指定日期，或落在每週固定公休的星期
+  function isHolidayDate(dateStr){
+    if (state.rules.holidays.includes(dateStr)) return true;
+    if (state.rules.weeklyHolidays.length === 0) return false;
+    const dow = (parseDateStr(dateStr).getDay() + 6) % 7; // 0 = 週一
+    return state.rules.weeklyHolidays.includes(dow);
   }
 
   // 以「該週的星期一」作為週的識別鍵（週一～週日為一週，可正確跨月）
@@ -1026,6 +1036,7 @@
       legendHolidays: "公休日",
       holidayHint: "公休日整天不排班：自動排班會跳過，該日也不列入人數不足檢查。",
       holidayBadge: "公休",
+      lblWeeklyHolidays: "每週固定公休",
       legalDisclaimer: "標有 ⚖ 的欄位已依勞動基準法強制規定限制可調整範圍，無法設定為違法數值。",
       legalHintMaxDaily: "⚖ 依勞基法第30條，正常工作時間每日不得超過 8 小時",
       legalHintMaxConsecutive: "⚖ 依勞基法第36條，每七日應有二日休息（一例假、一休息日），最多連續上班 5 天",
@@ -1164,6 +1175,7 @@
       legendHolidays: "Business holidays",
       holidayHint: "No one is scheduled on holidays: auto-scheduling skips them and they are excluded from understaffing checks.",
       holidayBadge: "Closed",
+      lblWeeklyHolidays: "Weekly closing days",
       legalDisclaimer: "Fields marked ⚖ are constrained by Taiwan's Labor Standards Act and cannot be set to illegal values.",
       legalHintMaxDaily: "⚖ Per Article 30: regular working hours must not exceed 8 hours/day",
       legalHintMaxConsecutive: "⚖ Per Article 36: 2 rest days every 7 days (one mandatory day off + one rest day), so max 5 consecutive work days",
@@ -1247,6 +1259,7 @@
     $("legendHolidays").textContent = t("legendHolidays");
     $("holidayHint").textContent = t("holidayHint");
     $("btnAddHoliday").textContent = t("btnAddDate");
+    $("lblWeeklyHolidays").textContent = t("lblWeeklyHolidays");
 
     $("lblIntroTitle").textContent = t("lblIntroTitle");
     $("introText").textContent = t("introText");
@@ -1320,7 +1333,8 @@
         maxWeeklyHours: 40,
         fairness: true,
         preference: true,
-        holidays: [] // 公休日（"YYYY-MM-DD"），當天不排班
+        holidays: [], // 公休日（"YYYY-MM-DD"），當天不排班
+        weeklyHolidays: [] // 每週固定公休（0 = 週一 ... 6 = 週日）
       },
       schedule: {}
     };
@@ -1331,6 +1345,7 @@
     parsed = parsed || {};
     const rules = Object.assign({}, def.rules, parsed.rules || {});
     if (!Array.isArray(rules.holidays)) rules.holidays = [];
+    if (!Array.isArray(rules.weeklyHolidays)) rules.weeklyHolidays = [];
     return {
       employees: Array.isArray(parsed.employees) ? parsed.employees : def.employees,
       shifts: Array.isArray(parsed.shifts) ? parsed.shifts : def.shifts,
@@ -1411,7 +1426,7 @@
       shifts.forEach(shift => { newSchedule[dateStr][shift.id] = []; });
 
       // 公休日整天不排班，全員休息（連續上班數歸零、夜班後休息條件也解除）
-      if (rules.holidays.includes(dateStr)){
+      if (isHolidayDate(dateStr)){
         employees.forEach(emp => {
           consecutiveStreak[emp.id] = 0;
           workedNightYesterday[emp.id] = false;
@@ -1527,7 +1542,7 @@
     dates.forEach(date => {
       const daySchedule = schedule[date];
       const workedShiftsOfEmp = {};
-      const isHoliday = rules.holidays.includes(date);
+      const isHoliday = isHolidayDate(date);
 
       Object.keys(daySchedule).forEach(shiftId => {
         const shift = shiftMap[shiftId];
@@ -1742,6 +1757,9 @@
     $("ruleHolidayList").innerHTML = state.rules.holidays.map(d =>
       `<span class="tag">${escapeHtml(d)}<button type="button" data-date="${d}">×</button></span>`
     ).join("");
+    $("weeklyHolidayGrid").innerHTML = t("weekdays").map((d, i) =>
+      `<label><input type="checkbox" value="${i}" ${state.rules.weeklyHolidays.includes(i) ? "checked" : ""}> ${escapeHtml(d)}</label>`
+    ).join("");
   }
 
   // 員工偏好班別總覽：每當員工資料新增/編輯/刪除，規則設定區會自動同步顯示最新偏好
@@ -1882,7 +1900,7 @@
     }
     for (let day = 1; day <= numDays; day++){
       const dateStr = formatDate(y, m, day);
-      const isHoliday = state.rules.holidays.includes(dateStr);
+      const isHoliday = isHolidayDate(dateStr);
       html += `<div class="calendar-cell${isHoliday ? " holiday-cell" : ""}">
         <div class="cell-date">${day}${isHoliday ? `<span class="holiday-badge">${escapeHtml(t("holidayBadge"))}</span>` : ""}</div>
         <div class="cell-shifts">${buildDayShiftsHtml(dateStr)}</div>
@@ -2555,6 +2573,11 @@
       state.rules.holidays = state.rules.holidays.filter(d => d !== btn.dataset.date);
       saveState();
       renderHolidayTags();
+      renderCalendar();
+    });
+    $("weeklyHolidayGrid").addEventListener("change", () => {
+      state.rules.weeklyHolidays = [...$("weeklyHolidayGrid").querySelectorAll("input:checked")].map(el => Number(el.value));
+      saveState();
       renderCalendar();
     });
 
