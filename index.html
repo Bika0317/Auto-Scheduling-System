@@ -579,7 +579,6 @@
         <h3 id="lblSectionRuleStatus">違規摘要</h3>
         <div id="statusSummary"></div>
         <ul id="violationList" class="violation-list"></ul>
-        <button id="btnToggleViolations" type="button" class="link-btn hidden"></button>
       </div>
       <div class="calendar-footer-panel">
         <h3 id="lblQuickSwapTitle">快速調班</h3>
@@ -968,8 +967,6 @@
       lblTodayTitle: "今日班表",
       todayDateInfo: (dateStr, wd) => `今天是 ${dateStr}（週${wd}）`,
       todayEmpty: "今天沒有任何排班",
-      showAllViolations: n => `顯示全部 ${n} 條`,
-      collapseViolations: "收合",
       lblQuickSwapTitle: "快速調班",
       lblSwapDate: "日期",
       lblSwapShift: "班別",
@@ -1047,16 +1044,19 @@
       copyHint: "以「星期對齊」方式複製：來源月的週間班表模式會對應到目標月相同的星期。",
       alertCopyInvalid: "請選擇兩個不同的月份",
       toastMonthCopied: (from, to) => `已將 ${from} 的班表複製到 ${to}`,
-      v_dailyHours: (date, sn, h, max) => `${date} 「${sn}」班次時長(${h}小時)超過勞基法每日正常工時上限(${max}小時)`,
-      v_duplicate: (date, en) => `${date} ${en} 一天被排了多個班別，工時可能超過勞基法每日上限`,
-      v_consecutive: (date, en, max) => `${date} ${en} 連續上班超過 ${max} 天上限（每七日應有二日休息）`,
-      v_noRest: (date, en) => `${date} ${en} 夜班後未依規則休息`,
-      v_weeklyHours: (en, week, h, max) => `${en} 於 ${week} 起該週工時 ${h} 小時，超過勞基法每週正常工時上限 ${max} 小時`,
-      v_weeklyRest: (en, week, off, req) => `${en} 於 ${week} 起該週僅休息 ${off} 天，未達每七日應有 ${req} 日休息（一例假一休息日）`,
-      v_offDaysLegal: (en, off, min) => `${en} 本月休假天數(${off})低於勞基法最低要求(${min})，違反「一例一休」規定`,
-      v_offDaysTarget: (en, off, target) => `${en} 本月休假天數(${off})未達規則設定的月休天數目標(${target})`,
-      v_preferenceNotMet: en => `${en} 本月排班完全未安排到偏好班別`,
-      v_holidayAssigned: (d, en) => `${d} 為公休日，但仍排了 ${en}`,
+      vs_understaffed: "班次人數不足",
+      vs_badAssign: "排到不可上／不想上的班",
+      vs_duplicate: "同一天排多個班別",
+      vs_dailyHours: "單班超過每日工時上限",
+      vs_consecutive: "連續上班超過上限",
+      vs_weeklyHours: "每週工時超標",
+      vs_weeklyRest: "每七日休息不足二日",
+      vs_offDaysLegal: "月休低於法定最低天數",
+      vs_offDaysTarget: "月休未達設定目標",
+      vs_noRest: "夜班後未休息",
+      vs_preference: "偏好班別未滿足",
+      vs_holidayAssigned: "公休日仍有排班",
+      vs_names: arr => `（${arr.slice(0, 4).join("、")}${arr.length > 4 ? "…" : ""}）`,
       legendHolidays: "公休日",
       holidayHint: "公休日整天不排班：自動排班會跳過，該日也不列入人數不足檢查。",
       holidayBadge: "公休",
@@ -1112,8 +1112,6 @@
       lblTodayTitle: "Today's Schedule",
       todayDateInfo: (dateStr, wd) => `Today is ${dateStr} (${wd})`,
       todayEmpty: "No shifts scheduled today",
-      showAllViolations: n => `Show all ${n}`,
-      collapseViolations: "Collapse",
       lblQuickSwapTitle: "Quick Swap",
       lblSwapDate: "Date",
       lblSwapShift: "Shift",
@@ -1191,16 +1189,19 @@
       copyHint: "Copies with weekday alignment: the source month's weekly pattern maps onto the same weekdays of the target month.",
       alertCopyInvalid: "Please pick two different months",
       toastMonthCopied: (from, to) => `Copied schedule from ${from} to ${to}`,
-      v_dailyHours: (date, sn, h, max) => `${date} "${sn}" duration (${h}h) exceeds the statutory regular daily hours (${max}h)`,
-      v_duplicate: (date, en) => `${date} ${en} was assigned multiple shifts in one day, likely exceeding the statutory daily hour limit`,
-      v_consecutive: (date, en, max) => `${date} ${en} exceeded the ${max}-day consecutive work limit (2 rest days required every 7 days)`,
-      v_noRest: (date, en) => `${date} ${en} did not get a rest day after a night shift as configured`,
-      v_weeklyHours: (en, week, h, max) => `${en} worked ${h}h in the week of ${week}, exceeding the statutory regular weekly hours (${max}h)`,
-      v_weeklyRest: (en, week, off, req) => `${en} only rested ${off} day(s) in the week of ${week}; ${req} rest days (one mandatory day off + one rest day) are required every 7 days`,
-      v_offDaysLegal: (en, off, min) => `${en} has only ${off} day(s) off this month, below the statutory minimum (${min}) under the "mandatory + flexible rest day" rule`,
-      v_offDaysTarget: (en, off, target) => `${en} has ${off} day(s) off this month, short of the configured target (${target})`,
-      v_preferenceNotMet: en => `${en} was never scheduled on a preferred shift this month`,
-      v_holidayAssigned: (d, en) => `${d} is a business holiday but ${en} is still scheduled`,
+      vs_understaffed: "Understaffed slots",
+      vs_badAssign: "Assigned to disallowed/unwanted shifts",
+      vs_duplicate: "Multiple shifts in one day",
+      vs_dailyHours: "Shift exceeds daily hour limit",
+      vs_consecutive: "Too many consecutive workdays",
+      vs_weeklyHours: "Weekly hours exceeded",
+      vs_weeklyRest: "Less than 2 rest days per 7 days",
+      vs_offDaysLegal: "Days off below legal minimum",
+      vs_offDaysTarget: "Days off below configured target",
+      vs_noRest: "No rest after night shift",
+      vs_preference: "Preferences not met",
+      vs_holidayAssigned: "Scheduled on business holiday",
+      vs_names: arr => ` (${arr.slice(0, 4).join(", ")}${arr.length > 4 ? "…" : ""})`,
       legendHolidays: "Business holidays",
       holidayHint: "No one is scheduled on holidays: auto-scheduling skips them and they are excluded from understaffing checks.",
       holidayBadge: "Closed",
@@ -1534,20 +1535,34 @@
 
   /* =========================================================
    * 規則檢查
-   * 日曆格子本身已用紅色標示出「不可上班別/不想上班日/夜班資格/人數不足」
-   * 等單純配對錯誤，這些不重複列出。但若手動調整造成「一天排太多班、
-   * 連續上班超標、單班超時」等實際違反勞基法的情形，仍會列在下方清單：
-   *   - 紅色：違反勞基法強制規定（一天多班、單班超時、連續上班超標、
-   *           每週工時超標、法定最低休假天數）
-   *   - 黃色：未達規則設定的目標、未滿足員工偏好、或夜班後未依規則休息
-   *           （合法，但未盡理想）
+   * 個別違規位置由月曆上的紅色格子/名牌標示；下方清單只列
+   * 「每種違規一行概括＋筆數（＋相關人員）」：
+   *   - 紅色：違反勞基法強制規定（人數不足、一天多班、單班超時、
+   *           連續上班超標、每週工時超標、法定最低休假天數）
+   *   - 黃色：未達規則設定的目標、未滿足員工偏好、夜班後未依規則休息、
+   *           公休日仍有排班（合法，但未盡理想）
    * ========================================================= */
   function computeViolations(){
     const { employees, shifts, rules, schedule } = state;
-    const listViolations = []; // 下方清單顯示用，含 level: "red" | "yellow"
-    let totalCount = 0; // 總體狀態計數，含日曆已標示紅色的問題
+    let totalCount = 0; // 總體狀態計數
     const redSlot = new Set();
     const redChip = new Set();
+
+    // 清單只列「每種違規一行概括＋筆數（＋相關人員）」，個別位置由月曆紅色標記呈現
+    const violationSummary = new Map(); // type → { level, count, names }
+    const addViolation = (type, level, name) => {
+      let v = violationSummary.get(type);
+      if (!v){ v = { level, count: 0, names: new Set() }; violationSummary.set(type, v); }
+      v.count++;
+      if (name) v.names.add(name);
+      totalCount++;
+    };
+    const buildList = () => [...violationSummary.entries()]
+      .sort((a, b) => (a[1].level === b[1].level) ? 0 : (a[1].level === "red" ? -1 : 1))
+      .map(([type, v]) => ({
+        level: v.level,
+        message: `${t("vs_" + type)} × ${v.count}${v.names.size ? t("vs_names", [...v.names]) : ""}`
+      }));
 
     const empMap = {}; employees.forEach(e => { empMap[e.id] = e; });
     const shiftMap = {}; shifts.forEach(s => { shiftMap[s.id] = s; });
@@ -1562,7 +1577,7 @@
       return !day || Object.keys(day).every(sid => day[sid].length === 0);
     });
     if (unscheduled){
-      return { listViolations, totalCount, redSlot, redChip, unscheduled };
+      return { listViolations: [], totalCount, redSlot, redChip, unscheduled };
     }
 
     const worksOn = (empId, date) => {
@@ -1584,20 +1599,18 @@
         // 公休日不需人力，不算人數不足；反之若仍排了人則提醒
         if (!isHoliday && assigned.length < shift.requiredCount){
           redSlot.add(`${date}_${shiftId}`);
-          totalCount++;
+          addViolation("understaffed", "red");
         }
         if (isHoliday){
           assigned.forEach(empId => {
             const emp = empMap[empId];
-            listViolations.push({ level: "yellow", message: t("v_holidayAssigned", date, emp ? emp.name : t("unknownEmployee")) });
             redChip.add(`${date}_${shiftId}_${empId}`);
-            totalCount++;
+            addViolation("holidayAssigned", "yellow", emp ? emp.name : t("unknownEmployee"));
           });
         }
         if (shiftHours(shift) > rules.maxDailyHours){
           redSlot.add(`${date}_${shiftId}`);
-          listViolations.push({ level: "red", message: t("v_dailyHours", date, shift.name, shiftHours(shift), rules.maxDailyHours) });
-          totalCount++;
+          addViolation("dailyHours", "red", shift.name);
         }
 
         assigned.forEach(empId => {
@@ -1610,15 +1623,14 @@
           if (!emp.allowedShifts.includes(shiftId)) bad = true;
           if (emp.unavailableDates.includes(date)) bad = true;
           if (shift.isNight && !emp.canNightShift) bad = true;
-          if (bad){ redChip.add(`${date}_${shiftId}_${empId}`); totalCount++; }
+          if (bad){ redChip.add(`${date}_${shiftId}_${empId}`); addViolation("badAssign", "red", emp.name); }
         });
       });
 
       Object.keys(workedShiftsOfEmp).forEach(empId => {
         if (workedShiftsOfEmp[empId].length > 1){
           const emp = empMap[empId];
-          listViolations.push({ level: "red", message: t("v_duplicate", date, emp ? emp.name : t("unknownEmployee")) });
-          totalCount++;
+          addViolation("duplicate", "red", emp ? emp.name : t("unknownEmployee"));
           workedShiftsOfEmp[empId].forEach(shiftId => redChip.add(`${date}_${shiftId}_${empId}`));
         }
       });
@@ -1641,9 +1653,8 @@
           Object.keys(daySchedule).forEach(shiftId => {
             if (daySchedule[shiftId].includes(empId)){
               const emp = empMap[empId];
-              listViolations.push({ level: "yellow", message: t("v_noRest", date, emp ? emp.name : t("unknownEmployee")) });
               redChip.add(`${date}_${shiftId}_${empId}`);
-              totalCount++;
+              addViolation("noRest", "yellow", emp ? emp.name : t("unknownEmployee"));
             }
           });
         });
@@ -1661,8 +1672,7 @@
         if (worksOn(emp.id, date)){
           streak++;
           if (streak > rules.maxConsecutiveDays){
-            listViolations.push({ level: "red", message: t("v_consecutive", date, emp.name, rules.maxConsecutiveDays) });
-            totalCount++;
+            addViolation("consecutive", "red", emp.name);
             Object.keys(schedule[date]).forEach(shiftId => {
               if (schedule[date][shiftId].includes(emp.id)) redChip.add(`${date}_${shiftId}_${emp.id}`);
             });
@@ -1696,13 +1706,11 @@
         });
 
         if (hours > rules.maxWeeklyHours){
-          listViolations.push({ level: "red", message: t("v_weeklyHours", emp.name, weekStart, Math.round(hours * 10) / 10, rules.maxWeeklyHours) });
-          totalCount++;
+          addViolation("weeklyHours", "red", emp.name);
         }
         const offDays = 7 - workedDays;
         if (workedDays > 0 && offDays < LABOR_LAW.OFF_DAYS_PER_WEEK_CYCLE){
-          listViolations.push({ level: "red", message: t("v_weeklyRest", emp.name, weekStart, offDays, LABOR_LAW.OFF_DAYS_PER_WEEK_CYCLE) });
-          totalCount++;
+          addViolation("weeklyRest", "red", emp.name);
         }
       });
     });
@@ -1716,11 +1724,9 @@
         ).length;
         const offDays = dates.length - workedDays;
         if (offDays < legalMinOffDays){
-          listViolations.push({ level: "red", message: t("v_offDaysLegal", emp.name, offDays, legalMinOffDays) });
-          totalCount++;
+          addViolation("offDaysLegal", "red", emp.name);
         } else if (offDays < rules.monthlyOffDays){
-          listViolations.push({ level: "yellow", message: t("v_offDaysTarget", emp.name, offDays, rules.monthlyOffDays) });
-          totalCount++;
+          addViolation("offDaysTarget", "yellow", emp.name);
         }
       });
     }
@@ -1738,13 +1744,12 @@
           }
         });
         if (workedDays > 0 && matchedDays === 0){
-          listViolations.push({ level: "yellow", message: t("v_preferenceNotMet", emp.name) });
-          totalCount++;
+          addViolation("preference", "yellow", emp.name);
         }
       });
     }
 
-    return { listViolations, totalCount, redSlot, redChip, unscheduled: false };
+    return { listViolations: buildList(), totalCount, redSlot, redChip, unscheduled: false };
   }
 
   /* =========================================================
@@ -1880,9 +1885,6 @@
   let lastRedChip = new Set();
   // TopBar 員工搜尋字串（小寫），非空時月曆上符合的 chip 高亮、其餘淡化
   let searchQuery = "";
-  // 違規清單是否展開全部（預設只顯示前 5 條）
-  let violationsExpanded = false;
-  const VIOLATION_PREVIEW_COUNT = 5;
 
   // 產生某一天的班別卡片 HTML
   function buildDayShiftsHtml(dateStr){
@@ -1966,18 +1968,10 @@
     $("tileCalendarSub").textContent = t("monthLabel", y, m);
     $("tileStaffSub").textContent = `${t("tileEmployeesCount", state.employees.length)}・${t("tileShiftsCount", state.shifts.length)}`;
 
-    // 違規摘要卡片：預設只列前幾條，可展開全部
-    const shown = violationsExpanded ? listViolations : listViolations.slice(0, VIOLATION_PREVIEW_COUNT);
-    $("violationList").innerHTML = shown.map(v =>
+    // 違規摘要：每種違規一行概括＋筆數，個別位置看月曆紅色標記
+    $("violationList").innerHTML = listViolations.map(v =>
       `<li class="${v.level === "red" ? "violation-red" : "violation-yellow"}">${escapeHtml(v.message)}</li>`
     ).join("");
-    const toggleBtn = $("btnToggleViolations");
-    if (listViolations.length > VIOLATION_PREVIEW_COUNT){
-      toggleBtn.classList.remove("hidden");
-      toggleBtn.textContent = violationsExpanded ? t("collapseViolations") : t("showAllViolations", listViolations.length);
-    } else {
-      toggleBtn.classList.add("hidden");
-    }
 
     renderTodayCard();
     renderQuickSwap();
@@ -2509,10 +2503,6 @@
     });
 
     $("btnGenerate").addEventListener("click", generateSchedule);
-    $("btnToggleViolations").addEventListener("click", () => {
-      violationsExpanded = !violationsExpanded;
-      renderCalendar();
-    });
     $("swapDate").addEventListener("change", renderSwapEmployeeSelects);
     $("swapShift").addEventListener("change", renderSwapEmployeeSelects);
     $("btnDoSwap").addEventListener("click", doQuickSwap);
