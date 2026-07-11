@@ -269,31 +269,49 @@
   }
   .link-btn:hover{ background:transparent; text-decoration:underline; }
 
-  /* ====== Drawer 抽屜面板 ====== */
-  .drawer-overlay{ position:fixed; inset:0; background: var(--color-overlay); z-index:90; }
-  .drawer{
-    position:fixed; top:0; right:0; bottom:0;
-    width:400px; max-width:92vw;
+  /* ====== 員工與班別管理頁 ====== */
+  .staff-body{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:16px;
+    flex:1;
+    min-height:0;
+  }
+  .staff-panel{
     background: var(--color-card);
-    border-left:1px solid var(--color-border);
-    z-index:95;
-    display:flex; flex-direction:column;
-    box-shadow:-4px 0 20px rgba(0,0,0,.2);
-    transform:translateX(100%);
-    transition:transform .25s ease;
-    visibility:hidden;
+    border:1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding:14px 16px;
+    overflow-y:auto;
+    min-height:0;
   }
-  .drawer.open{ transform:translateX(0); visibility:visible; }
-  .drawer-header{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:14px 16px; border-bottom:1px solid var(--color-border); flex-shrink:0;
+  .staff-panel h3{ margin:0 0 10px; }
+  .staff-panel .item-list{ max-height:none; }
+  @media (max-width:700px){
+    .staff-body{ grid-template-columns:1fr; }
   }
-  .drawer-header h3{ margin:0; }
-  .drawer-close{ border:none; background:transparent; font-size:16px; padding:4px 8px; }
-  .drawer-body{ padding:14px 16px; overflow-y:auto; flex:1; }
-  .drawer-body .item-list{ max-height:none; }
-  .drawer-add-btn{ width:100%; margin-bottom:12px; }
+  .add-btn-full{ width:100%; margin-bottom:12px; }
   .system-actions{ display:flex; flex-wrap:wrap; gap:8px; padding:8px; }
+
+  /* ====== 設定彈窗頁籤 ====== */
+  .config-tabs{
+    display:flex; gap:4px;
+    border-bottom:1px solid var(--color-border);
+    margin-bottom:14px;
+  }
+  .config-tab{
+    border:none; background:transparent;
+    padding:8px 14px; font-size:14px;
+    color: var(--color-text-light);
+    border-bottom:2px solid transparent;
+    border-radius:0;
+  }
+  .config-tab.active{
+    color: var(--color-primary);
+    font-weight:700;
+    border-bottom-color: var(--color-primary);
+  }
+  .config-pane.hidden{ display:none; }
 
   /* ====== 員工 / 班別卡片清單 ====== */
   .item-list{ display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto; }
@@ -479,10 +497,8 @@
       <div class="settings-menu-wrap">
         <button id="btnSettings" type="button">設定</button>
         <div id="settingsMenu" class="settings-menu hidden">
-          <button id="menuEmployees" type="button">員工管理</button>
-          <button id="menuShifts" type="button">班別管理</button>
-          <button id="menuRules" type="button">規則設定</button>
-          <button id="menuSystem" type="button">系統設定</button>
+          <button id="menuStaff" type="button">員工與班別</button>
+          <button id="menuConfig" type="button">設定</button>
         </div>
       </div>
       <div class="user-chip">
@@ -517,19 +533,13 @@
           <span class="tile-title" id="tileCalendarTitle">班表月曆</span>
           <span class="tile-sub" id="tileCalendarSub"></span>
         </button>
-        <button type="button" class="home-tile" id="tileEmployees">
-          <span class="tile-title" id="tileEmployeesTitle">員工管理</span>
-          <span class="tile-sub" id="tileEmployeesSub"></span>
+        <button type="button" class="home-tile" id="tileStaff">
+          <span class="tile-title" id="tileStaffTitle">員工與班別</span>
+          <span class="tile-sub" id="tileStaffSub"></span>
         </button>
-        <button type="button" class="home-tile" id="tileShifts">
-          <span class="tile-title" id="tileShiftsTitle">班別管理</span>
-          <span class="tile-sub" id="tileShiftsSub"></span>
-        </button>
-        <button type="button" class="home-tile" id="tileRules">
-          <span class="tile-title" id="tileRulesTitle">規則設定</span>
-        </button>
-        <button type="button" class="home-tile" id="tileSystem">
-          <span class="tile-title" id="tileSystemTitle">系統設定</span>
+        <button type="button" class="home-tile" id="tileConfig">
+          <span class="tile-title" id="tileConfigTitle">設定</span>
+          <span class="tile-sub" id="tileConfigSub"></span>
         </button>
       </div>
 
@@ -581,38 +591,38 @@
     </div>
   </div>
 
-  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+  <!-- 員工與班別管理：獨立頁面（#/staff） -->
+  <div id="staffView" class="calendar-view hidden">
+    <div class="calendar-view-header">
+      <div class="calendar-view-title">
+        <button type="button" id="btnCloseStaff">返回</button>
+        <h2 id="lblStaffTitle">員工與班別管理</h2>
+      </div>
+    </div>
+    <div class="staff-body">
+      <div class="staff-panel">
+        <h3 id="lblSectionEmployees">員工管理</h3>
+        <button id="btnAddEmployee" class="primary add-btn-full">+ 新增員工</button>
+        <div id="employeeList" class="item-list"></div>
+      </div>
+      <div class="staff-panel">
+        <h3 id="lblSectionShifts">班別管理</h3>
+        <button id="btnAddShift" class="primary add-btn-full">+ 新增班別</button>
+        <div id="shiftList" class="item-list"></div>
+      </div>
+    </div>
+  </div>
 
-  <aside id="drawerEmployees" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblSectionEmployees">員工管理</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
-      <button id="btnAddEmployee" class="primary drawer-add-btn">+ 新增員工</button>
-      <div id="employeeList" class="item-list"></div>
-    </div>
-  </aside>
+  <!-- 設定彈窗：排班規則 + 系統 -->
+  <div id="configModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="configModalTitle">設定</h3>
+      <div class="config-tabs">
+        <button type="button" class="config-tab active" id="tabRules" data-pane="paneRules"><span id="lblSectionRules">規則設定</span></button>
+        <button type="button" class="config-tab" id="tabSystem" data-pane="paneSystem"><span id="lblSectionSystem">系統設定</span></button>
+      </div>
 
-  <!-- Drawer：班別管理 -->
-  <aside id="drawerShifts" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblSectionShifts">班別管理</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
-      <button id="btnAddShift" class="primary drawer-add-btn">+ 新增班別</button>
-      <div id="shiftList" class="item-list"></div>
-    </div>
-  </aside>
-
-  <!-- Drawer：規則設定 -->
-  <aside id="drawerRules" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblSectionRules">規則設定</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
+      <div id="paneRules" class="config-pane">
       <p id="legalDisclaimer" class="legal-disclaimer"></p>
       <form id="rulesForm" class="rules-form" onsubmit="return false;">
         <label><span id="lblRuleMonthlyOffDays">每位員工月休天數</span>
@@ -654,16 +664,9 @@
         <div id="lblPreferenceOverview" class="sub-label">員工偏好班別總覽</div>
         <div id="preferenceOverview" class="preference-overview"></div>
       </form>
-    </div>
-  </aside>
+      </div>
 
-  <!-- Drawer：系統設定 -->
-  <aside id="drawerSystem" class="drawer">
-    <div class="drawer-header">
-      <h3 id="lblSectionSystem">系統設定</h3>
-      <button type="button" class="drawer-close" data-close>✕</button>
-    </div>
-    <div class="drawer-body">
+      <div id="paneSystem" class="config-pane hidden">
       <label><span id="lblUserName">使用者名稱</span>
         <input type="text" id="userNameInput">
       </label>
@@ -700,8 +703,13 @@
       </fieldset>
 
       <button id="btnClear" class="danger" type="button">清除資料</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btnCloseConfig" type="button">關閉</button>
+      </div>
     </div>
-  </aside>
+  </div>
 
   <!-- 新增 / 編輯員工 Modal -->
   <div id="employeeModal" class="modal-overlay hidden">
@@ -925,6 +933,10 @@
       lblIntroTitle: "關於本系統",
       introText: "輕量的自動排班工具：先建立班別與員工，設定排班規則後一鍵產生整月班表，並自動檢查是否符合勞動基準法（每日 8 小時、每週 40 小時、每七日應有二日休息）。支援手動調班、違規提醒、多月份管理與匯入匯出，所有資料只儲存在你的瀏覽器本機。",
       btnBack: "返回",
+      btnClose: "關閉",
+      menuStaff: "員工與班別",
+      lblStaffTitle: "員工與班別管理",
+      tileConfigSub: "排班規則・備份與匯入",
       tileEmployeesCount: n => `目前 ${n} 位員工`,
       tileShiftsCount: n => `目前 ${n} 個班別`,
       searchPlaceholder: "搜尋員工",
@@ -1064,6 +1076,10 @@
       lblIntroTitle: "About This System",
       introText: "A lightweight auto-scheduling tool: create shifts and employees, set the scheduling rules, then generate a full month's schedule in one click — with automatic Labor Standards Act checks (8 hours/day, 40 hours/week, 2 rest days every 7 days). Supports manual adjustments, violation alerts, multi-month management, and import/export. All data stays in your browser.",
       btnBack: "Back",
+      btnClose: "Close",
+      menuStaff: "Staff & shifts",
+      lblStaffTitle: "Staff & Shift Management",
+      tileConfigSub: "Rules · backup & import",
       tileEmployeesCount: n => `${n} employee(s)`,
       tileShiftsCount: n => `${n} shift(s)`,
       searchPlaceholder: "Search employee",
@@ -1234,10 +1250,8 @@
     $("searchEmployee").placeholder = t("searchPlaceholder");
     $("langSelect").value = uiPrefs.lang;
     $("btnSettings").textContent = t("btnSettings");
-    $("menuEmployees").textContent = t("lblSectionEmployees");
-    $("menuShifts").textContent = t("lblSectionShifts");
-    $("menuRules").textContent = t("lblSectionRules");
-    $("menuSystem").textContent = t("lblSectionSystem");
+    $("menuStaff").textContent = t("menuStaff");
+    $("menuConfig").textContent = t("btnSettings");
 
     $("btnAddEmployee").textContent = t("btnAddEmployee");
     $("btnAddShift").textContent = t("btnAddShift");
@@ -1264,11 +1278,15 @@
     $("lblIntroTitle").textContent = t("lblIntroTitle");
     $("introText").textContent = t("introText");
     $("btnCloseCalendar").textContent = t("btnBack");
+    $("btnCloseStaff").textContent = t("btnBack");
     $("tileCalendarTitle").textContent = t("lblSectionCalendar");
-    $("tileEmployeesTitle").textContent = t("lblSectionEmployees");
-    $("tileShiftsTitle").textContent = t("lblSectionShifts");
-    $("tileRulesTitle").textContent = t("lblSectionRules");
-    $("tileSystemTitle").textContent = t("lblSectionSystem");
+    $("tileStaffTitle").textContent = t("menuStaff");
+    $("tileStaffSub").textContent = "";
+    $("tileConfigTitle").textContent = t("btnSettings");
+    $("tileConfigSub").textContent = t("tileConfigSub");
+    $("lblStaffTitle").textContent = t("lblStaffTitle");
+    $("configModalTitle").textContent = t("btnSettings");
+    $("btnCloseConfig").textContent = t("btnClose");
 
     $("lblSectionCalendar").textContent = t("lblSectionCalendar");
     $("lblSectionRuleStatus").textContent = t("lblSectionRuleStatus");
@@ -1932,8 +1950,7 @@
 
     // 首頁功能按鈕的即時摘要文字
     $("tileCalendarSub").textContent = t("monthLabel", y, m);
-    $("tileEmployeesSub").textContent = t("tileEmployeesCount", state.employees.length);
-    $("tileShiftsSub").textContent = t("tileShiftsCount", state.shifts.length);
+    $("tileStaffSub").textContent = `${t("tileEmployeesCount", state.employees.length)}・${t("tileShiftsCount", state.shifts.length)}`;
 
     // 違規摘要卡片：預設只列前幾條，可展開全部
     const shown = violationsExpanded ? listViolations : listViolations.slice(0, VIOLATION_PREVIEW_COUNT);
@@ -2050,14 +2067,16 @@
   }
 
   /* =========================================================
-   * 月曆獨立畫面開關（覆蓋整個瀏覽器視窗，自動適應大小）
+   * 頁面路由（hash）：#/calendar 班表月曆、#/staff 員工與班別，其餘為首頁
    * ========================================================= */
-  function openCalendarView(){
-    $("calendarView").classList.remove("hidden");
+  function applyRoute(){
+    const h = location.hash;
+    $("calendarView").classList.toggle("hidden", h !== "#/calendar");
+    $("staffView").classList.toggle("hidden", h !== "#/staff");
   }
 
-  function closeCalendarView(){
-    $("calendarView").classList.add("hidden");
+  function goHome(){
+    if (location.hash) location.hash = "";
   }
 
   /* =========================================================
@@ -2387,31 +2406,26 @@
   }
 
   /* =========================================================
-   * Drawer 抽屜開關
+   * 設定彈窗（排班規則 / 系統）
    * ========================================================= */
-  let openDrawerEl = null;
-
-  function openDrawer(id){
-    closeDrawer();
-    openDrawerEl = $(id);
-    openDrawerEl.classList.add("open");
-    $("drawerOverlay").classList.remove("hidden");
-
-    // 開系統設定時預填「複製月份」的來源/目標（目前月 → 下個月）
-    if (id === "drawerSystem"){
-      if (!$("copyFromMonth").value) $("copyFromMonth").value = state.rules.month;
-      if (!$("copyToMonth").value){
-        const [y, m] = state.rules.month.split("-").map(Number);
-        const d = new Date(y, m, 1);
-        $("copyToMonth").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
-      }
-    }
+  function switchConfigTab(paneId){
+    document.querySelectorAll(".config-tab").forEach(b => b.classList.toggle("active", b.dataset.pane === paneId));
+    document.querySelectorAll(".config-pane").forEach(p => p.classList.toggle("hidden", p.id !== paneId));
   }
 
-  function closeDrawer(){
-    if (openDrawerEl) openDrawerEl.classList.remove("open");
-    openDrawerEl = null;
-    $("drawerOverlay").classList.add("hidden");
+  function openConfigModal(){
+    // 預填「複製月份」的來源/目標（目前月 → 下個月）
+    if (!$("copyFromMonth").value) $("copyFromMonth").value = state.rules.month;
+    if (!$("copyToMonth").value){
+      const [y, m] = state.rules.month.split("-").map(Number);
+      const d = new Date(y, m, 1);
+      $("copyToMonth").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    }
+    $("configModal").classList.remove("hidden");
+  }
+
+  function closeConfigModal(){
+    $("configModal").classList.add("hidden");
   }
 
   /* =========================================================
@@ -2446,13 +2460,8 @@
     });
     document.addEventListener("click", () => $("settingsMenu").classList.add("hidden"));
 
-    $("menuEmployees").addEventListener("click", () => openDrawer("drawerEmployees"));
-    $("menuShifts").addEventListener("click", () => openDrawer("drawerShifts"));
-    $("menuRules").addEventListener("click", () => openDrawer("drawerRules"));
-    $("menuSystem").addEventListener("click", () => openDrawer("drawerSystem"));
-
-    $("drawerOverlay").addEventListener("click", closeDrawer);
-    document.querySelectorAll(".drawer-close").forEach(btn => btn.addEventListener("click", closeDrawer));
+    $("menuStaff").addEventListener("click", () => { location.hash = "#/staff"; });
+    $("menuConfig").addEventListener("click", openConfigModal);
 
     $("userNameInput").addEventListener("input", e => {
       uiPrefs.userName = e.target.value;
@@ -2461,20 +2470,28 @@
     });
 
     // 首頁功能入口
-    $("tileCalendar").addEventListener("click", openCalendarView);
-    $("tileEmployees").addEventListener("click", () => openDrawer("drawerEmployees"));
-    $("tileShifts").addEventListener("click", () => openDrawer("drawerShifts"));
-    $("tileRules").addEventListener("click", () => openDrawer("drawerRules"));
-    $("tileSystem").addEventListener("click", () => openDrawer("drawerSystem"));
+    $("tileCalendar").addEventListener("click", () => { location.hash = "#/calendar"; });
+    $("tileStaff").addEventListener("click", () => { location.hash = "#/staff"; });
+    $("tileConfig").addEventListener("click", openConfigModal);
 
-    // 月曆獨立畫面
-    $("btnCloseCalendar").addEventListener("click", closeCalendarView);
+    // 頁面路由
+    window.addEventListener("hashchange", applyRoute);
+    $("btnCloseCalendar").addEventListener("click", goHome);
+    $("btnCloseStaff").addEventListener("click", goHome);
     $("btnCalPrevMonth").addEventListener("click", () => shiftViewMonth(-1));
     $("btnCalNextMonth").addEventListener("click", () => shiftViewMonth(1));
     document.addEventListener("keydown", e => {
       if (e.key !== "Escape") return;
-      if (openDrawerEl) closeDrawer();
-      else closeCalendarView();
+      if (!$("configModal").classList.contains("hidden")) closeConfigModal();
+      else goHome();
+    });
+
+    // 設定彈窗
+    $("tabRules").addEventListener("click", () => switchConfigTab("paneRules"));
+    $("tabSystem").addEventListener("click", () => switchConfigTab("paneSystem"));
+    $("btnCloseConfig").addEventListener("click", closeConfigModal);
+    $("configModal").addEventListener("click", e => {
+      if (e.target === $("configModal")) closeConfigModal();
     });
 
     $("btnGenerate").addEventListener("click", generateSchedule);
@@ -2636,6 +2653,7 @@
   bindEvents();
   applyTheme();
   applyLanguage(); // applyLanguage 內部會呼叫 renderAll()
+  applyRoute(); // 依網址 hash 還原目前頁面（#/calendar、#/staff）
 
 })();
 </script>
